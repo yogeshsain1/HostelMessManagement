@@ -1,0 +1,90 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "complaints": "Complaints",
+    "leave": "Leave",
+    "mess": "Mess",
+    "notifications": "Notifications",
+    "profile": "Profile",
+    "events": "Events",
+    "preferences": "Preferences"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "view": "View",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "confirm": "Confirm",
+    "search": "Search",
+    "filter": "Filter",
+    "sort": "Sort",
+    "export": "Export",
+    "import": "Import"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "welcome": "Welcome to Hostel Management",
+    "stats": "Statistics",
+    "recentActivity": "Recent Activity",
+    "quickActions": "Quick Actions"
+  },
+  "complaints": {
+    "title": "Complaints",
+    "new": "New Complaint",
+    "view": "View Complaints",
+    "status": "Status",
+    "priority": "Priority",
+    "category": "Category",
+    "description": "Description",
+    "attachments": "Attachments",
+    "submit": "Submit Complaint",
+    "resolve": "Resolve",
+    "pending": "Pending",
+    "inProgress": "In Progress",
+    "resolved": "Resolved",
+    "rejected": "Rejected"
+  },
+  "events": {
+    "title": "Events",
+    "create": "Create Event",
+    "view": "View Events",
+    "calendar": "Calendar View",
+    "title_field": "Title",
+    "description": "Description",
+    "startDate": "Start Date",
+    "endDate": "End Date",
+    "location": "Location",
+    "type": "Type"
+  },
+  "preferences": {
+    "title": "Preferences",
+    "appearance": "Appearance",
+    "theme": "Theme",
+    "language": "Language",
+    "timezone": "Timezone",
+    "notifications": "Notifications",
+    "dashboard": "Dashboard Layout",
+    "save": "Save Preferences",
+    "reset": "Reset to Defaults"
+  },
+  "auth": {
+    "login": "Login",
+    "logout": "Logout",
+    "email": "Email",
+    "password": "Password",
+    "forgotPassword": "Forgot Password?",
+    "signIn": "Sign In",
+    "signUp": "Sign Up"
+  },
+  "message": {
+    "saved": "Changes saved successfully",
+    "error": "An error occurred",
+    "confirmDelete": "Are you sure you want to delete this item?",
+    "noData": "No data available",
+    "loading": "Loading..."
+  }
+}

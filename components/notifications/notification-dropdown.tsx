@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { io } from "socket.io-client"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -17,8 +18,25 @@ import { Bell, Check, Trash2, Eye } from "lucide-react"
 import Link from "next/link"
 
 export function NotificationDropdown() {
-  const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification } = useNotifications()
+  const { notifications, unreadCount, addNotification, markAsRead, markAllAsRead, deleteNotification } = useNotifications()
   const [isOpen, setIsOpen] = useState(false)
+
+  // WebSocket connection for real-time notifications
+  useEffect(() => {
+    const socket = io("http://localhost:4001") // Change to your backend WebSocket URL
+    socket.on("notification", (data) => {
+      addNotification({
+        title: data.title,
+        message: data.message,
+        type: data.type || "info",
+        category: data.category || "system",
+        actionUrl: data.actionUrl,
+      })
+    })
+    return () => {
+      socket.disconnect()
+    }
+  }, [addNotification])
 
   const recentNotifications = notifications.slice(0, 5)
 
