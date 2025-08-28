@@ -77,10 +77,10 @@ async function updateProfile(req: AuthenticatedRequest) {
   }
 }
 
-// Get all users (admin only)
+// Get all users (admin and warden only)
 async function getAllUsers(req: AuthenticatedRequest) {
   try {
-    if (req.user!.role !== 'admin') {
+    if (!['admin', 'warden'].includes(req.user!.role)) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 403 }

@@ -1,12 +1,10 @@
 "use client"
 
-import type React from "react"
 import { useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { useAuth } from "@/lib/auth"
 import { useRouter } from "next/navigation"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { EnhancedButton } from "@/components/ui/enhanced-button"
@@ -17,7 +15,6 @@ export function LoginForm() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
-  const { login } = useAuth()
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -26,11 +23,23 @@ export function LoginForm() {
     setError("")
 
     try {
-      const success = await login(email, password)
-      if (success) {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        // Store the JWT token
+        localStorage.setItem('auth-token', data.token)
+        localStorage.setItem('hostel-user', JSON.stringify(data.user))
         router.push("/dashboard")
       } else {
-        setError("Invalid email or password")
+        setError(data.error || "Invalid email or password")
       }
     } catch (err) {
       setError("An error occurred during login")

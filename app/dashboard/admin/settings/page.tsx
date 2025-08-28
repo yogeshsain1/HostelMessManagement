@@ -26,6 +26,7 @@ export default function AdminSettingsPage() {
       <Card>
         <CardHeader>
           <CardTitle>Admin Settings</CardTitle>
+          <p className="text-muted-foreground mt-1">This website is a comprehensive Hostel and Mess Management System for colleges and universities.</p>
         </CardHeader>
         <CardContent className="space-y-6">
           <div>
