@@ -169,15 +169,15 @@ export default function WardenComplaintsPage() {
     <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Complaints Management</h1>
             <p className="text-muted-foreground">
               Manage and resolve student complaints for your hostel
             </p>
           </div>
-          <div className="mt-4 sm:mt-0">
-            <Button className="w-full sm:w-auto">
+          <div className="mt-2 sm:mt-0 w-full sm:w-auto">
+            <Button className="w-full sm:w-auto min-h-[44px]">
               <MessageSquare className="h-4 w-4 mr-2" />
               Generate Report
             </Button>
@@ -228,22 +228,22 @@ export default function WardenComplaintsPage() {
         </div>
 
         {/* Filters and Search */}
-        <Card>
+        <Card className="sm:sticky sm:top-0 sm:z-10">
           <CardHeader>
             <CardTitle className="text-lg">Filters & Search</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
               <div className="flex-1">
                 <Label htmlFor="search">Search Complaints</Label>
                 <div className="relative">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="search"
                     placeholder="Search by title or student name..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 h-11 sm:h-10"
                   />
                 </div>
               </div>
@@ -276,17 +276,17 @@ export default function WardenComplaintsPage() {
             <CardTitle className="text-lg">Complaints ({filteredComplaints.length})</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               {filteredComplaints.map((complaint) => (
                 <div
                   key={complaint.id}
                   className="border rounded-lg p-4 hover:shadow-md transition-shadow"
                 >
-                  <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-3 lg:space-y-0">
+                  <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 lg:gap-0">
                     <div className="flex-1 space-y-2">
-                      <div className="flex items-start justify-between">
-                        <h3 className="font-semibold text-lg">{complaint.title}</h3>
-                        <div className="flex items-center space-x-2">
+                      <div className="flex items-start justify-between gap-3">
+                        <h3 className="font-semibold text-base sm:text-lg leading-snug line-clamp-2 flex-1">{complaint.title}</h3>
+                        <div className="flex flex-wrap items-center gap-1 sm:gap-2 justify-end">
                           <Badge className={priorityColors[complaint.priority as keyof typeof priorityColors]}>
                             {complaint.priority}
                           </Badge>
@@ -296,11 +296,11 @@ export default function WardenComplaintsPage() {
                         </div>
                       </div>
                       
-                      <p className="text-muted-foreground line-clamp-2">
+                      <p className="text-muted-foreground text-sm sm:text-base line-clamp-3">
                         {complaint.description}
                       </p>
                       
-                      <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 text-sm text-muted-foreground">
                         <div className="flex items-center space-x-1">
                           <Building className="h-4 w-4" />
                           <span>{complaint.roomNumber}</span>
@@ -316,11 +316,12 @@ export default function WardenComplaintsPage() {
                       </div>
                     </div>
                     
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-2 sm:justify-end">
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => handleViewDetails(complaint)}
+                        className="w-full sm:w-auto min-h-[44px]"
                       >
                         <Eye className="h-4 w-4 mr-2" />
                         View Details
