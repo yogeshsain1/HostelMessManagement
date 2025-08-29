@@ -269,14 +269,14 @@ export default function MessPage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="p-4 bg-white dark:bg-card rounded-lg border border-border">
                   <h4 className="font-semibold mb-2 text-foreground">Best Rated Meal</h4>
-                  <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2">
                     <Star className="h-5 w-5 text-yellow-500 dark:text-yellow-400 fill-current" />
                     <span className="font-medium text-foreground">{today.lunch.items}</span>
                     <Badge className="bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 border-green-200 dark:border-green-700">
                       {today.lunch.rating} ★
                     </Badge>
-                  </div>
-                </div>
+              </div>
+            </div>
 
                 <div className="p-4 bg-white dark:bg-card rounded-lg border border-border">
                   <h4 className="font-semibold mb-2 text-foreground">Next Meal</h4>
@@ -286,7 +286,7 @@ export default function MessPage() {
                     <span className="text-sm text-muted-foreground">({today.snacks.time})</span>
                   </div>
                 </div>
-              </div>
+            </div>
             </CardContent>
           </Card>
         )}

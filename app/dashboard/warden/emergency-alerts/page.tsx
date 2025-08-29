@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useAuth } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,8 +9,12 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { AlertTriangle, Bell, Broadcast, Clock, Users, X } from "lucide-react"
+import React from "react"
+import { AlertTriangle, Bell, Megaphone, Clock, Users, Download, FileText } from "lucide-react"
 import { toast } from "sonner"
+import { DashboardSkeleton } from "@/components/loading-skeleton"
+import { EmptyState } from "@/components/error-message"
+import { downloadCsv, printHtml } from "@/lib/reports"
 
 interface EmergencyAlert {
   id: string
@@ -96,7 +100,7 @@ const categoryIcons = {
   safety: AlertTriangle,
   maintenance: Users,
   academic: Clock,
-  event: Broadcast
+  event: Megaphone
 }
 
 export default function EmergencyAlertsPage() {
@@ -107,6 +111,13 @@ export default function EmergencyAlertsPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [priorityFilter, setPriorityFilter] = useState<string>("all")
   const [categoryFilter, setCategoryFilter] = useState<string>("all")
+  const [dateRange, setDateRange] = useState<string>("7d")
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const t = setTimeout(() => setLoading(false), 600)
+    return () => clearTimeout(t)
+  }, [])
 
   // Redirect if not warden
   if (user?.role !== "warden") {
@@ -120,12 +131,23 @@ export default function EmergencyAlertsPage() {
     )
   }
 
+  const withinRange = (d: Date) => {
+    const now = new Date()
+    if (dateRange === "today") {
+      return d.toDateString() === now.toDateString()
+    }
+    const days = dateRange === "30d" ? 30 : dateRange === "7d" ? 7 : 365
+    const cutoff = new Date(now.getTime() - days * 24 * 60 * 60 * 1000)
+    return d >= cutoff
+  }
+
   const filteredAlerts = alerts.filter(alert => {
     const matchesSearch = alert.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          alert.message.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesPriority = priorityFilter === "all" || alert.priority === priorityFilter
     const matchesCategory = categoryFilter === "all" || alert.category === categoryFilter
-    return matchesSearch && matchesPriority && matchesCategory
+    const matchesDate = withinRange(alert.createdAt)
+    return matchesSearch && matchesPriority && matchesCategory && matchesDate
   })
 
   const activeAlerts = alerts.filter(alert => alert.status === "active")
@@ -168,6 +190,33 @@ export default function EmergencyAlertsPage() {
     toast.success("Alert marked as expired!")
   }
 
+  const handleExportCsv = () => {
+    const rows = filteredAlerts.map((a, i) => ({
+      index: i + 1,
+      id: a.id,
+      title: a.title,
+      priority: a.priority,
+      category: a.category,
+      status: a.status,
+      createdAt: a.createdAt.toISOString(),
+      expiresAt: a.expiresAt.toISOString(),
+      readRate: ((a.readCount / a.totalRecipients) * 100).toFixed(1) + "%",
+    }))
+    downloadCsv(rows, `alerts-${dateRange}`)
+    toast.success("CSV downloaded")
+  }
+
+  const handlePrint = () => {
+    const html = `
+      <h1>Emergency Alerts</h1>
+      <table><thead><tr><th>Title</th><th>Priority</th><th>Category</th><th>Status</th><th>Created</th></tr></thead>
+      <tbody>
+        ${filteredAlerts.map(a => `<tr><td>${a.title}</td><td>${a.priority}</td><td>${a.category}</td><td>${a.status}</td><td>${a.createdAt.toLocaleString()}</td></tr>`).join("")}
+      </tbody></table>
+    `
+    printHtml("Emergency Alerts", html)
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -178,10 +227,18 @@ export default function EmergencyAlertsPage() {
             Broadcast important announcements and emergency notifications to hostel residents
           </p>
         </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleExportCsv}>
+            <Download className="h-4 w-4 mr-2" /> CSV
+          </Button>
+          <Button variant="outline" onClick={handlePrint}>
+            <FileText className="h-4 w-4 mr-2" /> Print
+          </Button>
+        </div>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
             <Button className="flex items-center gap-2">
-              <Broadcast className="h-4 w-4" />
+              <Megaphone className="h-4 w-4" />
               Create Alert
             </Button>
           </DialogTrigger>
@@ -264,6 +321,10 @@ export default function EmergencyAlertsPage() {
         </Dialog>
       </div>
 
+      {loading ? (
+        <DashboardSkeleton />
+      ) : (
+      <>
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
@@ -335,6 +396,16 @@ export default function EmergencyAlertsPage() {
                 className="max-w-sm"
               />
             </div>
+            <Select value={dateRange} onValueChange={setDateRange}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Date Range" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="today">Today</SelectItem>
+                <SelectItem value="7d">Last 7 days</SelectItem>
+                <SelectItem value="30d">Last 30 days</SelectItem>
+              </SelectContent>
+            </Select>
             <Select value={priorityFilter} onValueChange={setPriorityFilter}>
               <SelectTrigger className="w-40">
                 <SelectValue placeholder="Priority" />
@@ -366,7 +437,9 @@ export default function EmergencyAlertsPage() {
 
       {/* Alerts List */}
       <div className="space-y-4">
-        {filteredAlerts.map((alert) => {
+        {filteredAlerts.length === 0 ? (
+          <EmptyState title="No alerts found" description="Adjust filters or create a new alert." />
+        ) : filteredAlerts.map((alert) => {
           const CategoryIcon = categoryIcons[alert.category]
           const isExpired = new Date() > alert.expiresAt
           
@@ -449,6 +522,8 @@ export default function EmergencyAlertsPage() {
           )
         })}
       </div>
+      </>
+      )}
 
       {/* Alert Details Modal */}
       <Dialog open={!!selectedAlert} onOpenChange={() => setSelectedAlert(null)}>

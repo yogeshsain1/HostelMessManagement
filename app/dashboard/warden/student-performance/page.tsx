@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useAuth } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -11,8 +11,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { BarChart3, BookOpen, Calendar, Clock, GraduationCap, Search, Star, TrendingUp, Users } from "lucide-react"
+import { Calendar, Clock, GraduationCap, Star, Users, Download, FileText } from "lucide-react"
 import { toast } from "sonner"
+import { DashboardSkeleton } from "@/components/loading-skeleton"
+import { EmptyState } from "@/components/error-message"
+import { downloadCsv, printHtml } from "@/lib/reports"
 
 interface StudentPerformance {
   id: string
@@ -226,6 +229,12 @@ export default function StudentPerformancePage() {
   const [yearFilter, setYearFilter] = useState<string>("all")
   const [blockFilter, setBlockFilter] = useState<string>("all")
   const [performanceFilter, setPerformanceFilter] = useState<string>("all")
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const t = setTimeout(() => setLoading(false), 600)
+    return () => clearTimeout(t)
+  }, [])
 
   // Redirect if not warden
   if (user?.role !== "warden") {
@@ -263,6 +272,34 @@ export default function StudentPerformancePage() {
     return "text-red-600"
   }
 
+  const handleExportCsv = () => {
+    const rows = filteredStudents.map((s, i) => ({
+      index: i + 1,
+      id: s.id,
+      name: s.name,
+      room: s.roomNumber,
+      block: s.block,
+      year: s.year,
+      branch: s.branch,
+      cgpa: s.academicPerformance.cgpa,
+      attendance: s.academicPerformance.attendance,
+      behavior: s.behavioralPerformance.overall,
+    }))
+    downloadCsv(rows, `students-performance`)
+    toast.success("CSV downloaded")
+  }
+
+  const handlePrint = () => {
+    const html = `
+      <h1>Student Performance</h1>
+      <table><thead><tr><th>Name</th><th>Block</th><th>Year</th><th>CGPA</th><th>Attendance</th><th>Behavior</th></tr></thead>
+      <tbody>
+        ${filteredStudents.map(s => `<tr><td>${s.name}</td><td>${s.block}</td><td>${s.year}</td><td>${s.academicPerformance.cgpa}</td><td>${s.academicPerformance.attendance}%</td><td>${s.behavioralPerformance.overall}</td></tr>`).join("")}
+      </tbody></table>
+    `
+    printHtml("Student Performance", html)
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -275,6 +312,10 @@ export default function StudentPerformancePage() {
         </div>
       </div>
 
+      {loading ? (
+        <DashboardSkeleton />
+      ) : (
+      <>
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
@@ -384,7 +425,9 @@ export default function StudentPerformancePage() {
 
       {/* Students List */}
       <div className="space-y-4">
-        {filteredStudents.map((student) => (
+        {filteredStudents.length === 0 ? (
+          <EmptyState title="No students found" description="Adjust filters to see results." />
+        ) : filteredStudents.map((student) => (
           <Card key={student.id}>
             <CardHeader>
               <div className="flex items-start justify-between">
@@ -439,6 +482,8 @@ export default function StudentPerformancePage() {
           </Card>
         ))}
       </div>
+      </>
+      )}
 
       {/* Student Details Modal */}
       <Dialog open={!!selectedStudent} onOpenChange={() => setSelectedStudent(null)}>

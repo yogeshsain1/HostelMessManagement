@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useAuth } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,8 +9,11 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { AlertTriangle, Calendar, Clock, Hammer, MapPin, Settings, Wrench } from "lucide-react"
+import { AlertTriangle, Calendar, Clock, MapPin, Wrench, Download, FileText } from "lucide-react"
 import { toast } from "sonner"
+import { TableSkeleton } from "@/components/loading-skeleton"
+import { EmptyState } from "@/components/error-message"
+import { downloadCsv, printHtml } from "@/lib/reports"
 
 interface MaintenanceRequest {
   id: string
@@ -86,6 +89,13 @@ export default function MaintenancePage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [priorityFilter, setPriorityFilter] = useState<string>("all")
+  const [dateRange, setDateRange] = useState<string>("30d")
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const t = setTimeout(() => setLoading(false), 650)
+    return () => clearTimeout(t)
+  }, [])
 
   if (user?.role !== "warden") {
     return (
@@ -98,11 +108,19 @@ export default function MaintenancePage() {
     )
   }
 
+  const withinRange = (d: Date) => {
+    const now = new Date()
+    const days = dateRange === "7d" ? 7 : dateRange === "30d" ? 30 : 365
+    const cutoff = new Date(now.getTime() - days * 24 * 60 * 60 * 1000)
+    return d >= cutoff
+  }
+
   const filteredRequests = requests.filter(request => {
     const matchesSearch = request.title.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = statusFilter === "all" || request.status === statusFilter
     const matchesPriority = priorityFilter === "all" || request.priority === priorityFilter
-    return matchesSearch && matchesStatus && matchesPriority
+    const matchesDate = withinRange(request.reportedAt)
+    return matchesSearch && matchesStatus && matchesPriority && matchesDate
   })
 
   const pendingRequests = requests.filter(r => r.status === "pending")
@@ -134,6 +152,34 @@ export default function MaintenancePage() {
     toast.success("Request status updated successfully!")
   }
 
+  const handleExportCsv = () => {
+    const rows = filteredRequests.map((r, i) => ({
+      index: i + 1,
+      id: r.id,
+      title: r.title,
+      category: r.category,
+      priority: r.priority,
+      status: r.status,
+      location: r.location,
+      reportedBy: r.reportedBy,
+      reportedAt: r.reportedAt.toISOString(),
+      estimatedCost: r.estimatedCost ?? "",
+    }))
+    downloadCsv(rows, `maintenance-${dateRange}`)
+    toast.success("CSV downloaded")
+  }
+
+  const handlePrint = () => {
+    const html = `
+      <h1>Maintenance Requests</h1>
+      <table><thead><tr><th>Title</th><th>Priority</th><th>Status</th><th>Location</th><th>Reported</th></tr></thead>
+      <tbody>
+        ${filteredRequests.map(r => `<tr><td>${r.title}</td><td>${r.priority}</td><td>${r.status}</td><td>${r.location}</td><td>${r.reportedAt.toLocaleDateString()}</td></tr>`).join("")}
+      </tbody></table>
+    `
+    printHtml("Maintenance", html)
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -142,6 +188,14 @@ export default function MaintenancePage() {
           <p className="text-muted-foreground">
             Manage and track hostel infrastructure maintenance requests
           </p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleExportCsv}>
+            <Download className="h-4 w-4 mr-2" /> CSV
+          </Button>
+          <Button variant="outline" onClick={handlePrint}>
+            <FileText className="h-4 w-4 mr-2" /> Print
+          </Button>
         </div>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
@@ -219,6 +273,10 @@ export default function MaintenancePage() {
         </Dialog>
       </div>
 
+      {loading ? (
+        <TableSkeleton rows={6} columns={5} />
+      ) : (
+      <>
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -284,6 +342,16 @@ export default function MaintenancePage() {
                 className="max-w-sm"
               />
             </div>
+            <Select value={dateRange} onValueChange={setDateRange}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Date Range" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="7d">Last 7 days</SelectItem>
+                <SelectItem value="30d">Last 30 days</SelectItem>
+                <SelectItem value="365d">Last 12 months</SelectItem>
+              </SelectContent>
+            </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-40">
                 <SelectValue placeholder="Status" />
@@ -313,7 +381,9 @@ export default function MaintenancePage() {
       </Card>
 
       <div className="space-y-4">
-        {filteredRequests.map((request) => (
+        {filteredRequests.length === 0 ? (
+          <EmptyState title="No requests found" description="Adjust filters or create a new request." />
+        ) : filteredRequests.map((request) => (
           <Card key={request.id}>
             <CardHeader>
               <div className="flex items-start justify-between">
@@ -383,6 +453,8 @@ export default function MaintenancePage() {
           </Card>
         ))}
       </div>
+      </>
+      )}
     </div>
   )
 }

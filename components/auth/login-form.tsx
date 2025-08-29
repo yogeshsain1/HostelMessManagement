@@ -64,16 +64,7 @@ export function LoginForm() {
     }
   }
 
-  const quickFill = (role: "admin" | "warden" | "student") => {
-    if (role === "admin") {
-      setEmail("admin@poornima.edu.in")
-    } else if (role === "warden") {
-      setEmail("warden1@poornima.edu.in")
-    } else {
-      setEmail("student1@poornima.edu.in")
-    }
-    setPassword("demo123")
-  }
+  // Removed demo quickFill function and demo password autofill
 
   return (
     <div className="min-h-[0]">
@@ -88,11 +79,7 @@ export function LoginForm() {
         </CardHeader>
 
         <CardContent className="animate-in fade-in-0 duration-500 delay-500 px-4 sm:px-6">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-4">
-            <Button variant="outline" size="sm" onClick={() => quickFill("student")}>Student</Button>
-            <Button variant="outline" size="sm" onClick={() => quickFill("warden")}>Warden</Button>
-            <Button variant="outline" size="sm" onClick={() => quickFill("admin")}>Admin</Button>
-          </div>
+        
           <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email" className="text-sm font-medium">
@@ -148,7 +135,6 @@ export function LoginForm() {
                 />
                 <span className="text-muted-foreground">Remember email</span>
               </label>
-              <span className="text-xs text-muted-foreground">Demo password: <span className="font-medium">demo123</span></span>
             </div>
 
             {error && (

@@ -1,6 +1,6 @@
 "use client"
 
-import type React from "react"
+import React from "react"
 import { createContext, useContext, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 
@@ -12,6 +12,17 @@ export interface User {
   role: "student" | "warden" | "admin"
   hostelId?: string
   roomNumber?: string
+  addressLine1?: string
+  addressLine2?: string
+  city?: string
+  state?: string
+  postalCode?: string
+  emergencyContactName?: string
+  emergencyContactPhone?: string
+  course?: string
+  year?: string
+  profileImageUrl?: string
+  twoFactorEnabled?: boolean
 }
 
 interface AuthContextType {
@@ -20,6 +31,7 @@ interface AuthContextType {
   logout: () => void
   loading: boolean
   hasRole: (role: string) => boolean
+  updateProfile: (updates: Partial<User>) => Promise<User | null>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -74,9 +86,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     console.log('Found user:', foundUser)
 
     // Simple password check for demo
-    if (foundUser && password === "password123") {
+    if (foundUser && (password === "password123" || password === "demo123")) {
       setUser(foundUser)
       localStorage.setItem("hostel-user", JSON.stringify(foundUser))
+      try {
+        document.cookie = "hostel-auth=1; path=/; SameSite=Lax"
+      } catch (_) {}
       console.log('Login successful')
       return true
     }
@@ -88,14 +103,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null)
     localStorage.removeItem("hostel-user")
     // Navigation will be handled by the component calling this function
+    try {
+      document.cookie = "hostel-auth=; Max-Age=0; path=/; SameSite=Lax"
+    } catch (_) {}
   }
 
   const hasRole = (role: string): boolean => {
     return user?.role === role
   }
 
+  const updateProfile = async (updates: Partial<User>): Promise<User | null> => {
+    if (!user) return null
+    const updated: User = { ...user, ...updates }
+    setUser(updated)
+    try {
+      localStorage.setItem("hostel-user", JSON.stringify(updated))
+    } catch (_) {}
+    return updated
+  }
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading, hasRole }}>
+    <AuthContext.Provider value={{ user, login, logout, loading, hasRole, updateProfile }}>
       {children}
     </AuthContext.Provider>
   )

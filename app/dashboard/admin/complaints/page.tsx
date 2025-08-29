@@ -1,11 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { ComplaintManagement } from "@/components/admin/complaint-management"
 import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AlertTriangle, CheckCircle, Clock } from "lucide-react"
+import { DashboardSkeleton, CardsSkeleton } from "@/components/loading-skeleton"
+import { EmptyState } from "@/components/error-message"
 
 const mockComplaints = [
   {
@@ -45,6 +47,12 @@ const mockComplaints = [
 
 export default function AdminComplaintsPage() {
   const [complaints, setComplaints] = useState(mockComplaints)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const t = setTimeout(() => setLoading(false), 700)
+    return () => clearTimeout(t)
+  }, [])
 
   const handleUpdateComplaint = (id: string, status: string, response?: string) => {
     setComplaints((prev) =>
@@ -72,6 +80,10 @@ export default function AdminComplaintsPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        {loading ? (
+          <DashboardSkeleton />
+        ) : (
+        <>
         <div>
           <h1 className="text-3xl font-bold text-foreground">Complaint Management</h1>
           <p className="text-muted-foreground mt-1">Review and manage all hostel complaints.</p>
@@ -134,30 +146,48 @@ export default function AdminComplaintsPage() {
           </TabsList>
 
           <TabsContent value="all">
-            <ComplaintManagement complaints={getComplaintsByStatus("all")} onUpdateComplaint={handleUpdateComplaint} />
+            {getComplaintsByStatus("all").length === 0 ? (
+              <EmptyState title="No complaints" description="There are no complaints to show." />
+            ) : (
+              <ComplaintManagement complaints={getComplaintsByStatus("all")} onUpdateComplaint={handleUpdateComplaint} />
+            )}
           </TabsContent>
 
           <TabsContent value="pending">
-            <ComplaintManagement
-              complaints={getComplaintsByStatus("pending")}
-              onUpdateComplaint={handleUpdateComplaint}
-            />
+            {getComplaintsByStatus("pending").length === 0 ? (
+              <EmptyState title="No pending complaints" />
+            ) : (
+              <ComplaintManagement
+                complaints={getComplaintsByStatus("pending")}
+                onUpdateComplaint={handleUpdateComplaint}
+              />
+            )}
           </TabsContent>
 
           <TabsContent value="in-progress">
-            <ComplaintManagement
-              complaints={getComplaintsByStatus("in-progress")}
-              onUpdateComplaint={handleUpdateComplaint}
-            />
+            {getComplaintsByStatus("in-progress").length === 0 ? (
+              <EmptyState title="No in-progress complaints" />
+            ) : (
+              <ComplaintManagement
+                complaints={getComplaintsByStatus("in-progress")}
+                onUpdateComplaint={handleUpdateComplaint}
+              />
+            )}
           </TabsContent>
 
           <TabsContent value="resolved">
-            <ComplaintManagement
-              complaints={getComplaintsByStatus("resolved")}
-              onUpdateComplaint={handleUpdateComplaint}
-            />
+            {getComplaintsByStatus("resolved").length === 0 ? (
+              <EmptyState title="No resolved complaints" />
+            ) : (
+              <ComplaintManagement
+                complaints={getComplaintsByStatus("resolved")}
+                onUpdateComplaint={handleUpdateComplaint}
+              />
+            )}
           </TabsContent>
         </Tabs>
+        </>
+        )}
       </div>
     </DashboardLayout>
   )

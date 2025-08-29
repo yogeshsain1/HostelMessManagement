@@ -5,6 +5,8 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Download, FileText, Calendar, Users, MessageSquare, UtensilsCrossed, TrendingUp, Clock } from "lucide-react"
+import { downloadCsv, printHtml } from "@/lib/reports"
+import { toast } from "sonner"
 
 const reports = [
   {
@@ -78,6 +80,70 @@ const getStatusColor = (status: string) => {
 }
 
 export default function AdminReportsPage() {
+  const handleDownload = async (report: any) => {
+    try {
+      // Try to fetch real data from API where available
+      let rows: any[] = []
+      if (report.type === "complaints") {
+        const res = await fetch("/api/complaints")
+        const json = await res.json().catch(() => ({}))
+        rows = (json?.data?.complaints ?? json?.complaints ?? []).map((c: any, i: number) => ({
+          index: i + 1,
+          id: c.id,
+          title: c.title,
+          category: c.category,
+          status: c.status,
+          priority: c.priority,
+          roomNumber: c.roomNumber,
+          createdAt: c.createdAt,
+        }))
+      } else if (report.type === "leave") {
+        const res = await fetch("/api/leave")
+        const json = await res.json().catch(() => ({}))
+        rows = (json?.data?.requests ?? json?.requests ?? []).map((r: any, i: number) => ({
+          index: i + 1,
+          id: r.id,
+          type: r.type,
+          status: r.status,
+          startDate: r.startDate,
+          endDate: r.endDate,
+          createdAt: r.createdAt,
+        }))
+      }
+
+      if (!rows.length) {
+        // Fallback demo rows
+        rows = [
+          { id: 1, title: report.title, type: report.type, period: report.period, generatedAt: report.generatedAt ?? "n/a" },
+          { id: 2, title: report.title, type: report.type, period: report.period, generatedAt: report.generatedAt ?? "n/a" },
+        ]
+      }
+
+      downloadCsv(rows, `${report.type}-${report.period}`)
+      toast.success("CSV downloaded")
+    } catch (e) {
+      toast.error("Failed to generate CSV; using fallback")
+      const rows = [
+        { id: 1, title: report.title, type: report.type, period: report.period, generatedAt: report.generatedAt ?? "n/a" },
+        { id: 2, title: report.title, type: report.type, period: report.period, generatedAt: report.generatedAt ?? "n/a" },
+      ]
+      downloadCsv(rows, `${report.type}-${report.period}`)
+    }
+  }
+
+  const handlePrint = (report: any) => {
+    const html = `
+      <h1>${report.title}</h1>
+      <p>${report.description}</p>
+      <table><thead><tr><th>Metric</th><th>Value</th></tr></thead>
+      <tbody>
+        <tr><td>Type</td><td>${report.type}</td></tr>
+        <tr><td>Period</td><td>${report.period}</td></tr>
+        <tr><td>Status</td><td>${report.status}</td></tr>
+      </tbody></table>
+    `
+    printHtml(report.title, html)
+  }
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -167,10 +233,16 @@ export default function AdminReportsPage() {
                     <div className="flex items-center space-x-3">
                       <Badge className={getStatusColor(report.status)}>{report.status}</Badge>
                       {report.status === "ready" && (
-                        <Button size="sm">
-                          <Download className="h-4 w-4 mr-2" />
-                          Download
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={() => handleDownload(report)}>
+                            <Download className="h-4 w-4 mr-2" />
+                            CSV
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => handlePrint(report)}>
+                            <FileText className="h-4 w-4 mr-2" />
+                            Print
+                          </Button>
+                        </div>
                       )}
                       {report.status === "generating" && (
                         <Button size="sm" variant="outline" disabled>

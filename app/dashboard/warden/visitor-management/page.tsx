@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useAuth } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -10,8 +10,11 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Calendar, Clock, LogIn, LogOut, MapPin, Phone, Search, User, Users, X } from "lucide-react"
+import { Calendar, Clock, LogIn, LogOut, MapPin, Phone, Users, Download, FileText } from "lucide-react"
 import { toast } from "sonner"
+import { TableSkeleton } from "@/components/loading-skeleton"
+import { EmptyState } from "@/components/error-message"
+import { downloadCsv, printHtml } from "@/lib/reports"
 
 interface Visitor {
   id: string
@@ -132,6 +135,13 @@ export default function VisitorManagementPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [blockFilter, setBlockFilter] = useState<string>("all")
+  const [dateRange, setDateRange] = useState<string>("today")
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const t = setTimeout(() => setLoading(false), 650)
+    return () => clearTimeout(t)
+  }, [])
 
   // Redirect if not warden
   if (user?.role !== "warden") {
@@ -145,13 +155,22 @@ export default function VisitorManagementPage() {
     )
   }
 
+  const withinRange = (d: Date) => {
+    const now = new Date()
+    if (dateRange === "today") return d.toDateString() === now.toDateString()
+    const days = dateRange === "7d" ? 7 : 30
+    const cutoff = new Date(now.getTime() - days * 24 * 60 * 60 * 1000)
+    return d >= cutoff
+  }
+
   const filteredVisitors = visitors.filter(visitor => {
     const matchesSearch = visitor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          visitor.visitingStudent.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          visitor.purpose.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = statusFilter === "all" || visitor.status === statusFilter
     const matchesBlock = blockFilter === "all" || visitor.visitingStudent.block === blockFilter
-    return matchesSearch && matchesStatus && matchesBlock
+    const matchesDate = withinRange(visitor.entryTime)
+    return matchesSearch && matchesStatus && matchesBlock && matchesDate
   })
 
   const insideVisitors = visitors.filter(visitor => visitor.status === "inside")
@@ -196,6 +215,34 @@ export default function VisitorManagementPage() {
     toast.success("Visitor exit recorded successfully!")
   }
 
+  const handleExportCsv = () => {
+    const rows = filteredVisitors.map((v, i) => ({
+      index: i + 1,
+      id: v.id,
+      name: v.name,
+      phone: v.phone,
+      student: v.visitingStudent.name,
+      room: v.visitingStudent.roomNumber,
+      block: v.visitingStudent.block,
+      status: v.status,
+      entryTime: v.entryTime.toISOString(),
+      exitTime: v.exitTime ? v.exitTime.toISOString() : "",
+    }))
+    downloadCsv(rows, `visitors-${dateRange}`)
+    toast.success("CSV downloaded")
+  }
+
+  const handlePrint = () => {
+    const html = `
+      <h1>Visitors</h1>
+      <table><thead><tr><th>Name</th><th>Student</th><th>Room</th><th>Block</th><th>Status</th><th>Entry</th></tr></thead>
+      <tbody>
+        ${filteredVisitors.map(v => `<tr><td>${v.name}</td><td>${v.visitingStudent.name}</td><td>${v.visitingStudent.roomNumber}</td><td>${v.visitingStudent.block}</td><td>${v.status}</td><td>${v.entryTime.toLocaleString()}</td></tr>`).join("")}
+      </tbody></table>
+    `
+    printHtml("Visitors", html)
+  }
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "inside": return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
@@ -226,6 +273,14 @@ export default function VisitorManagementPage() {
           <p className="text-muted-foreground">
             Track guest entries, exits, and manage visitor access to the hostel
           </p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleExportCsv}>
+            <Download className="h-4 w-4 mr-2" /> CSV
+          </Button>
+          <Button variant="outline" onClick={handlePrint}>
+            <FileText className="h-4 w-4 mr-2" /> Print
+          </Button>
         </div>
         <Dialog open={isEntryDialogOpen} onOpenChange={setIsEntryDialogOpen}>
           <DialogTrigger asChild>
@@ -333,6 +388,10 @@ export default function VisitorManagementPage() {
         </Dialog>
       </div>
 
+      {loading ? (
+        <TableSkeleton rows={6} columns={5} />
+      ) : (
+      <>
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
@@ -407,6 +466,16 @@ export default function VisitorManagementPage() {
                 className="max-w-sm"
               />
             </div>
+            <Select value={dateRange} onValueChange={setDateRange}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Date Range" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="today">Today</SelectItem>
+                <SelectItem value="7d">Last 7 days</SelectItem>
+                <SelectItem value="30d">Last 30 days</SelectItem>
+              </SelectContent>
+            </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-40">
                 <SelectValue placeholder="Status" />
@@ -436,7 +505,9 @@ export default function VisitorManagementPage() {
 
       {/* Visitors List */}
       <div className="space-y-4">
-        {filteredVisitors.map((visitor) => (
+        {filteredVisitors.length === 0 ? (
+          <EmptyState title="No visitors found" description="Adjust filters or record a new entry." />
+        ) : filteredVisitors.map((visitor) => (
           <Card key={visitor.id}>
             <CardHeader>
               <div className="flex items-start justify-between">
@@ -509,6 +580,8 @@ export default function VisitorManagementPage() {
           </Card>
         ))}
       </div>
+      </>
+      )}
 
       {/* Visitor Details Modal */}
       <Dialog open={!!selectedVisitor} onOpenChange={() => setSelectedVisitor(null)}>

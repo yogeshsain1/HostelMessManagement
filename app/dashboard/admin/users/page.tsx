@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -7,6 +8,8 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
 import { Users, UserPlus, Search, Mail, Phone, MapPin } from "lucide-react"
+import { TableSkeleton } from "@/components/loading-skeleton"
+import { EmptyState } from "@/components/error-message"
 
 const mockUsers = [
   {
@@ -45,6 +48,13 @@ const mockUsers = [
 ]
 
 export default function AdminUsersPage() {
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const t = setTimeout(() => setLoading(false), 600)
+    return () => clearTimeout(t)
+  }, [])
+
   const stats = {
     total: mockUsers.length,
     students: mockUsers.filter((u) => u.role === "student").length,
@@ -68,6 +78,10 @@ export default function AdminUsersPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        {loading ? (
+          <TableSkeleton rows={6} columns={5} />
+        ) : (
+        <>
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-foreground">User Management</h1>
@@ -138,56 +152,62 @@ export default function AdminUsersPage() {
         </Card>
 
         {/* Users List */}
-        <div className="grid gap-4">
-          {mockUsers.map((user) => (
-            <Card key={user.id}>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <Avatar className="h-12 w-12">
-                      <AvatarFallback>
-                        {user.fullName
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <h3 className="font-medium">{user.fullName}</h3>
-                      <div className="flex items-center space-x-4 text-sm text-muted-foreground mt-1">
-                        <div className="flex items-center space-x-1">
-                          <Mail className="h-3 w-3" />
-                          <span>{user.email}</span>
+        {mockUsers.length === 0 ? (
+          <EmptyState title="No users found" description="Start by adding a new user to the system." action={<Button><UserPlus className="h-4 w-4 mr-2" />Add User</Button>} />
+        ) : (
+          <div className="grid gap-4">
+            {mockUsers.map((user) => (
+              <Card key={user.id}>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <Avatar className="h-12 w-12">
+                        <AvatarFallback>
+                          {user.fullName
+                            .split(" ")
+                            .map((n) => n[0])
+                            .join("")}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <h3 className="font-medium">{user.fullName}</h3>
+                        <div className="flex items-center space-x-4 text-sm text-muted-foreground mt-1">
+                          <div className="flex items-center space-x-1">
+                            <Mail className="h-3 w-3" />
+                            <span>{user.email}</span>
+                          </div>
+                          {user.phone && (
+                            <div className="flex items-center space-x-1">
+                              <Phone className="h-3 w-3" />
+                              <span>{user.phone}</span>
+                            </div>
+                          )}
+                          {user.roomNumber && (
+                            <div className="flex items-center space-x-1">
+                              <MapPin className="h-3 w-3" />
+                              <span>Room {user.roomNumber}</span>
+                            </div>
+                          )}
                         </div>
-                        {user.phone && (
-                          <div className="flex items-center space-x-1">
-                            <Phone className="h-3 w-3" />
-                            <span>{user.phone}</span>
-                          </div>
-                        )}
-                        {user.roomNumber && (
-                          <div className="flex items-center space-x-1">
-                            <MapPin className="h-3 w-3" />
-                            <span>Room {user.roomNumber}</span>
-                          </div>
-                        )}
                       </div>
                     </div>
+                    <div className="flex items-center space-x-2">
+                      <Badge className={getRoleBadgeColor(user.role)}>{user.role}</Badge>
+                      <Badge variant="outline" className="text-green-600 border-green-200">
+                        {user.status}
+                      </Badge>
+                      <Button variant="outline" size="sm">
+                        Edit
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Badge className={getRoleBadgeColor(user.role)}>{user.role}</Badge>
-                    <Badge variant="outline" className="text-green-600 border-green-200">
-                      {user.status}
-                    </Badge>
-                    <Button variant="outline" size="sm">
-                      Edit
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+        </>
+        )}
       </div>
     </DashboardLayout>
   )
