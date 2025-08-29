@@ -1,8 +1,8 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
-import { useAuth } from "@/lib/auth"
+import { useEffect, useState } from "react"
+import { useAuth, useLogout } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
@@ -17,29 +17,35 @@ import { Badge } from "@/components/ui/badge"
 import { NotificationDropdown } from "@/components/notifications/notification-dropdown"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
 import {
-  Home,
-  User,
-  UtensilsCrossed,
+  AlertTriangle,
+  BarChart3,
   Building,
-  MessageSquare,
   Calendar,
+  GraduationCap,
+  Home,
+  LogIn,
   LogOut,
   Menu,
-  X,
-  Users,
+  MessageSquare,
   Settings,
-  BarChart3,
+  User,
+  Users,
+  UtensilsCrossed,
+  Wrench,
+  X,
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import Image from "next/image"
+import { toast } from "sonner"
 
 interface DashboardLayoutProps {
   children: React.ReactNode
 }
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
+  const logout = useLogout()
   const pathname = usePathname()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
@@ -61,16 +67,20 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       ]
     }
 
-    if (user?.role === "warden") {
-      return [
-        ...baseNavigation,
-        { name: "Complaints", href: "/dashboard/warden/complaints", icon: MessageSquare },
-        { name: "Leave Requests", href: "/dashboard/warden/leave", icon: Calendar },
-        { name: "Residents", href: "/dashboard/warden/residents", icon: Users },
-        { name: "Mess Menu", href: "/dashboard/warden/mess", icon: UtensilsCrossed },
-        { name: "Reports", href: "/dashboard/warden/reports", icon: BarChart3 },
-      ]
-    }
+            if (user?.role === "warden") {
+          return [
+            ...baseNavigation,
+            { name: "Complaints", href: "/dashboard/warden/complaints", icon: MessageSquare },
+            { name: "Leave Requests", href: "/dashboard/warden/leave", icon: Calendar },
+            { name: "Residents", href: "/dashboard/warden/residents", icon: Users },
+            { name: "Mess Menu", href: "/dashboard/warden/mess", icon: UtensilsCrossed },
+            { name: "Reports", href: "/dashboard/warden/reports", icon: BarChart3 },
+            { name: "Emergency Alerts", href: "/dashboard/warden/emergency-alerts", icon: AlertTriangle },
+            { name: "Visitor Management", href: "/dashboard/warden/visitor-management", icon: LogIn },
+            { name: "Maintenance", href: "/dashboard/warden/maintenance", icon: Wrench },
+            { name: "Student Performance", href: "/dashboard/warden/student-performance", icon: GraduationCap },
+          ]
+        }
 
     // Student navigation
     return [
@@ -83,6 +93,43 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   }
 
   const navigation = getNavigation()
+  // Demo keyboard shortcuts and quick help toast
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setSidebarOpen((v) => !v)
+        toast.info("Toggled sidebar (Ctrl+K)")
+      }
+      if (e.shiftKey && e.key.toLowerCase() === 'm') {
+        e.preventDefault()
+        window.location.href = "/dashboard/mess"
+        toast.success("Navigating to Mess (Shift+M)")
+      }
+      if (e.shiftKey && e.key.toLowerCase() === 'a') {
+        e.preventDefault()
+        window.location.href = "/dashboard/admin/analytics"
+        toast.success("Navigating to Analytics (Shift+A)")
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
+
+  // One-time demo help toast
+  useEffect(() => {
+    try {
+      const shown = localStorage.getItem('demo-help-shown')
+      if (!shown) {
+        toast.message("Demo Shortcuts", {
+          description: "Ctrl+K: Toggle sidebar · Shift+M: Mess · Shift+A: Analytics",
+        })
+        localStorage.setItem('demo-help-shown', '1')
+      }
+    } catch (_) {
+      // ignore storage errors
+    }
+  }, [])
 
   const isActive = (href: string) => pathname === href
 

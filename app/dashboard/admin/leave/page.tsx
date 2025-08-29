@@ -41,12 +41,23 @@ const mockLeaveRequests = [
     createdAt: "2024-01-10",
     days: 4,
   },
+  {
+    id: "4",
+    studentName: "David Student",
+    roomNumber: "C301",
+    startDate: "2024-01-10",
+    endDate: "2024-01-12",
+    reason: "Family emergency",
+    status: "rejected" as const,
+    createdAt: "2024-01-08",
+    days: 3,
+  },
 ]
 
 export default function AdminLeavePage() {
-  const [requests, setRequests] = useState(mockLeaveRequests)
+  const [requests, setRequests] = useState<typeof mockLeaveRequests>(mockLeaveRequests)
 
-  const handleUpdateRequest = (id: string, status: "approved" | "rejected", comment?: string) => {
+  const handleUpdateRequest = (id: string, status: "approved" | "rejected" | "pending", comment?: string) => {
     setRequests((prev) => prev.map((request) => (request.id === id ? { ...request, status } : request)))
     console.log("Updated leave request:", { id, status, comment })
   }

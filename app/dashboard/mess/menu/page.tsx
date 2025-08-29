@@ -1,4 +1,5 @@
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
 export default function MessMenuPage() {
@@ -10,9 +11,9 @@ export default function MessMenuPage() {
         </CardHeader>
         <CardContent>
           <p className="mb-4">View, add, or edit meals for each day.</p>
-          <Link href="/dashboard/mess/menu/manage">
-            <button className="bg-primary text-white px-4 py-2 rounded">Manage Menu</button>
-          </Link>
+          <Button asChild>
+            <Link href="/dashboard/mess/menu/manage">Manage Menu</Link>
+          </Button>
         </CardContent>
       </Card>
     </div>

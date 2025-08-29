@@ -1,105 +1,259 @@
 "use client"
 
+import { useAuth } from "@/lib/auth"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { MessageSquare, Calendar, Home, AlertTriangle, CheckCircle, Clock } from "lucide-react"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { 
+  Home, 
+  Users, 
+  Phone, 
+  Mail, 
+  MapPin, 
+  Building,
+  Shield,
+  Clock,
+  Star,
+  Wifi,
+  Droplets,
+  Zap,
+  MessageSquare,
+  Calendar,
+  UtensilsCrossed,
+  User
+} from "lucide-react"
 import Link from "next/link"
 
-const mockStats = {
-  activeComplaints: 2,
-  resolvedComplaints: 8,
-  pendingLeaveRequests: 1,
-  approvedLeaveRequests: 3,
-}
-
-const mockAnnouncements = [
-  {
-    id: "1",
-    title: "Monthly Hostel Meeting",
-    message: "Monthly hostel meeting scheduled for December 25th at 6 PM in the common room.",
-    date: "2024-01-10",
-    priority: "medium",
-  },
-  {
-    id: "2",
-    title: "Water Supply Maintenance",
-    message: "Water supply will be interrupted tomorrow from 10 AM to 2 PM for maintenance work.",
-    date: "2024-01-12",
-    priority: "high",
-  },
-  {
-    id: "3",
-    title: "New WiFi Password",
-    message: "WiFi password has been updated. Please contact the warden for the new password.",
-    date: "2024-01-08",
-    priority: "low",
-  },
-]
-
 export default function HostelPage() {
+  const { user } = useAuth()
+
+  if (!user) {
+    return null
+  }
+
+  // Mock hostel data
+  const hostelData = {
+    name: "Block A - Boys Hostel",
+    address: "Poornima University Campus, Jaipur, Rajasthan",
+    totalRooms: 120,
+    occupiedRooms: 98,
+    warden: {
+      name: "Mr. Rajesh Sharma",
+      phone: "+91-9876543211",
+      email: "warden1@poornima.edu.in",
+      image: "/placeholder-user.jpg"
+    },
+    facilities: [
+      { name: "WiFi", status: "Available", icon: Wifi, color: "text-green-600" },
+      { name: "Water Supply", status: "24/7", icon: Droplets, color: "text-blue-600" },
+      { name: "Power Backup", status: "Available", icon: Zap, color: "text-yellow-600" }
+    ],
+    rules: [
+      "Check-in time: 8:00 PM",
+      "Check-out time: 6:00 AM",
+      "No smoking or alcohol",
+      "Maintain cleanliness",
+      "Follow hostel timings"
+    ],
+    emergencyContacts: [
+      { name: "Hostel Office", phone: "+91-141-1234567" },
+      { name: "Security", phone: "+91-141-1234568" },
+      { name: "Medical", phone: "+91-141-1234569" }
+    ]
+  }
+
+  const occupancyRate = Math.round((hostelData.occupiedRooms / hostelData.totalRooms) * 100)
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Hostel Management</h1>
-            <p className="text-muted-foreground mt-1">Manage complaints, leave requests, and hostel services.</p>
-          </div>
-          <div className="flex space-x-2">
-            <Button asChild>
-              <Link href="/dashboard/complaints/new">File Complaint</Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link href="/dashboard/leave/new">Request Leave</Link>
-            </Button>
-          </div>
+        {/* Header */}
+        <div>
+          <h1 className="text-3xl font-bold">Hostel Information</h1>
+          <p className="text-muted-foreground">Your hostel details and facilities</p>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-4">
+        {/* Hostel Overview Card */}
+        <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+          <CardContent className="p-6">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between space-y-4 md:space-y-0">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 bg-blue-100 rounded-full">
+                  <Building className="h-8 w-8 text-blue-600" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-blue-900">{hostelData.name}</h2>
+                  <p className="text-blue-700 flex items-center space-x-2">
+                    <MapPin className="h-4 w-4" />
+                    <span>{hostelData.address}</span>
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <Badge className="bg-blue-100 text-blue-800 text-sm px-3 py-1">
+                  Room {user.roomNumber}
+                </Badge>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Stats Grid */}
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
           <Card>
             <CardContent className="p-6">
-              <div className="flex items-center space-x-2">
-                <AlertTriangle className="h-4 w-4 text-orange-600" />
-                <div className="space-y-1">
-                  <p className="text-sm font-medium">Active Complaints</p>
-                  <p className="text-2xl font-bold">{mockStats.activeComplaints}</p>
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <Home className="h-6 w-6 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Total Rooms</p>
+                  <p className="text-2xl font-bold">{hostelData.totalRooms}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
+
           <Card>
             <CardContent className="p-6">
-              <div className="flex items-center space-x-2">
-                <CheckCircle className="h-4 w-4 text-green-600" />
-                <div className="space-y-1">
-                  <p className="text-sm font-medium">Resolved</p>
-                  <p className="text-2xl font-bold">{mockStats.resolvedComplaints}</p>
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <Users className="h-6 w-6 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Occupied</p>
+                  <p className="text-2xl font-bold">{hostelData.occupiedRooms}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
+
           <Card>
             <CardContent className="p-6">
-              <div className="flex items-center space-x-2">
-                <Clock className="h-4 w-4 text-yellow-600" />
-                <div className="space-y-1">
-                  <p className="text-sm font-medium">Pending Leave</p>
-                  <p className="text-2xl font-bold">{mockStats.pendingLeaveRequests}</p>
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <Shield className="h-6 w-6 text-purple-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Occupancy</p>
+                  <p className="text-2xl font-bold">{occupancyRate}%</p>
                 </div>
               </div>
             </CardContent>
           </Card>
+        </div>
+
+        {/* Main Content Grid */}
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* Warden Information */}
           <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-2">
-                <Calendar className="h-4 w-4 text-blue-600" />
-                <div className="space-y-1">
-                  <p className="text-sm font-medium">Approved Leave</p>
-                  <p className="text-2xl font-bold">{mockStats.approvedLeaveRequests}</p>
+            <CardHeader>
+              <CardTitle className="text-xl flex items-center space-x-2">
+                <Shield className="h-5 w-5" />
+                <span>Warden Information</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-start space-x-4">
+                <Avatar className="h-16 w-16">
+                  <AvatarImage src={hostelData.warden.image} alt={hostelData.warden.name} />
+                  <AvatarFallback className="text-lg">
+                    {hostelData.warden.name.split(" ").map(n => n[0]).join("")}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 space-y-3">
+                  <div>
+                    <h3 className="font-semibold text-lg">{hostelData.warden.name}</h3>
+                    <p className="text-sm text-muted-foreground">Hostel Warden</p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-2 text-sm">
+                      <Phone className="h-4 w-4 text-muted-foreground" />
+                      <span>{hostelData.warden.phone}</span>
+                    </div>
+                    <div className="flex items-center space-x-2 text-sm">
+                      <Mail className="h-4 w-4 text-muted-foreground" />
+                      <span>{hostelData.warden.email}</span>
+                    </div>
+                  </div>
+
+                  <Button variant="outline" size="sm" className="mt-2">
+                    Contact Warden
+                  </Button>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Facilities */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-xl flex items-center space-x-2">
+                <Star className="h-5 w-5" />
+                <span>Available Facilities</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {hostelData.facilities.map((facility, index) => (
+                  <div key={index} className="flex items-center justify-between p-3 rounded-lg border">
+                    <div className="flex items-center space-x-3">
+                      <facility.icon className={`h-5 w-5 ${facility.color}`} />
+                      <span className="font-medium">{facility.name}</span>
+                    </div>
+                    <Badge variant="outline" className="text-green-700 border-green-200">
+                      {facility.status}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Hostel Rules */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-xl flex items-center space-x-2">
+                <Clock className="h-5 w-5" />
+                <span>Hostel Rules</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {hostelData.rules.map((rule, index) => (
+                  <div key={index} className="flex items-start space-x-3">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                    <span className="text-sm">{rule}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Emergency Contacts */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-xl flex items-center space-x-2">
+                <Phone className="h-5 w-5" />
+                <span>Emergency Contacts</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {hostelData.emergencyContacts.map((contact, index) => (
+                  <div key={index} className="flex items-center justify-between p-3 rounded-lg border">
+                    <div>
+                      <h4 className="font-medium">{contact.name}</h4>
+                      <p className="text-sm text-muted-foreground">{contact.phone}</p>
+                    </div>
+                    <Button variant="outline" size="sm">
+                      Call
+                    </Button>
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>
@@ -108,66 +262,53 @@ export default function HostelPage() {
         {/* Quick Actions */}
         <Card>
           <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
+            <CardTitle className="text-xl">Quick Actions</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              <Button asChild className="h-auto p-4 flex-col space-y-2">
+            <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
+              <Button
+                asChild
+                variant="outline"
+                className="h-auto p-4 flex-col space-y-2"
+              >
                 <Link href="/dashboard/complaints/new">
-                  <MessageSquare className="h-6 w-6" />
-                  <span>File Complaint</span>
+                  <MessageSquare className="h-5 w-5" />
+                  <span className="text-sm font-medium">Report Issue</span>
                 </Link>
               </Button>
-              <Button asChild variant="outline" className="h-auto p-4 flex-col space-y-2 bg-transparent">
+              
+              <Button
+                asChild
+                variant="outline"
+                className="h-auto p-4 flex-col space-y-2"
+              >
                 <Link href="/dashboard/leave/new">
-                  <Calendar className="h-6 w-6" />
-                  <span>Request Leave</span>
+                  <Calendar className="h-5 w-5" />
+                  <span className="text-sm font-medium">Request Leave</span>
                 </Link>
               </Button>
-              <Button asChild variant="outline" className="h-auto p-4 flex-col space-y-2 bg-transparent">
-                <Link href="/dashboard/complaints">
-                  <AlertTriangle className="h-6 w-6" />
-                  <span>View Complaints</span>
+              
+              <Button
+                asChild
+                variant="outline"
+                className="h-auto p-4 flex-col space-y-2"
+              >
+                <Link href="/dashboard/mess">
+                  <UtensilsCrossed className="h-5 w-5" />
+                  <span className="text-sm font-medium">Mess Menu</span>
                 </Link>
               </Button>
-              <Button asChild variant="outline" className="h-auto p-4 flex-col space-y-2 bg-transparent">
-                <Link href="/dashboard/leave">
-                  <Home className="h-6 w-6" />
-                  <span>Leave History</span>
+              
+              <Button
+                asChild
+                variant="outline"
+                className="h-auto p-4 flex-col space-y-2"
+              >
+                <Link href="/dashboard/profile">
+                  <User className="h-5 w-5" />
+                  <span className="text-sm font-medium">Update Profile</span>
                 </Link>
               </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Announcements */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Hostel Announcements</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {mockAnnouncements.map((announcement) => (
-                <div key={announcement.id} className="p-4 bg-muted/50 rounded-lg">
-                  <div className="flex items-start justify-between mb-2">
-                    <h4 className="font-medium">{announcement.title}</h4>
-                    <Badge
-                      variant="outline"
-                      className={
-                        announcement.priority === "high"
-                          ? "border-red-200 text-red-800"
-                          : announcement.priority === "medium"
-                            ? "border-orange-200 text-orange-800"
-                            : "border-gray-200 text-gray-800"
-                      }
-                    >
-                      {announcement.priority}
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-2">{announcement.message}</p>
-                  <p className="text-xs text-muted-foreground">{announcement.date}</p>
-                </div>
-              ))}
             </div>
           </CardContent>
         </Card>

@@ -1,70 +1,98 @@
-import bcrypt from 'bcryptjs'
-import jwt from 'jsonwebtoken'
-import { prisma } from '@/lib/prisma'
+"use client"
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
+import type React from "react"
+import { createContext, useContext, useState, useEffect } from "react"
 
-export interface AuthUser {
+export interface User {
   id: string
   email: string
   fullName: string
-  role: string
+  role: "student" | "warden" | "admin"
   hostelId?: string
+  roomNumber?: string
 }
 
-export class AuthService {
-  static async hashPassword(password: string): Promise<string> {
-    return bcrypt.hash(password, 12)
-  }
+interface AuthContextType {
+  user: User | null
+  login: (email: string, password: string) => Promise<boolean>
+  logout: () => void
+  loading: boolean
+  hasRole: (role: string) => boolean
+}
 
-  static async verifyPassword(password: string, hashedPassword: string): Promise<boolean> {
-    return bcrypt.compare(password, hashedPassword)
-  }
+const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-  static generateToken(user: AuthUser): string {
-    return jwt.sign(
-      {
-        id: user.id,
-        email: user.email,
-        fullName: user.fullName,
-        role: user.role,
-        hostelId: user.hostelId,
-      },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    )
-  }
+// Mock users for demonstration
+const mockUsers: User[] = [
+  {
+    id: "1",
+    email: "admin@hostel.com",
+    fullName: "Admin User",
+    role: "admin",
+  },
+  {
+    id: "2",
+    email: "warden@hostel.com",
+    fullName: "Warden User",
+    role: "warden",
+    hostelId: "1",
+  },
+  {
+    id: "3",
+    email: "student@hostel.com",
+    fullName: "Student User",
+    role: "student",
+    hostelId: "1",
+    roomNumber: "A101",
+  },
+]
 
-  static verifyToken(token: string): AuthUser | null {
-    try {
-      const decoded = jwt.verify(token, JWT_SECRET) as any
-      return {
-        id: decoded.id,
-        email: decoded.email,
-        fullName: decoded.fullName,
-        role: decoded.role,
-        hostelId: decoded.hostelId,
-      }
-    } catch (error) {
-      return null
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    // Check for stored user session
+    const storedUser = localStorage.getItem("hostel-user")
+    if (storedUser) {
+      setUser(JSON.parse(storedUser))
     }
+    setLoading(false)
+  }, [])
+
+  const login = async (email: string, password: string): Promise<boolean> => {
+    // Mock authentication - in real app, this would call an API
+    const foundUser = mockUsers.find((u) => u.email === email)
+
+    // Simple password check for demo
+    if (foundUser && password === "password123") {
+      setUser(foundUser)
+      localStorage.setItem("hostel-user", JSON.stringify(foundUser))
+      return true
+    }
+    return false
   }
 
-  static async getUserByEmail(email: string) {
-    return prisma.user.findUnique({
-      where: { email },
-      include: {
-        hostel: true,
-      },
-    })
+  const logout = () => {
+    setUser(null)
+    localStorage.removeItem("hostel-user")
   }
 
-  static async getUserById(id: string) {
-    return prisma.user.findUnique({
-      where: { id },
-      include: {
-        hostel: true,
-      },
-    })
+  const hasRole = (role: string): boolean => {
+    return user?.role === role
   }
+
+  return (
+    <AuthContext.Provider value={{ user, login, logout, loading, hasRole }}>
+      {children}
+    </AuthContext.Provider>
+  )
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext)
+  if (context === undefined) {
+    throw new Error("useAuth must be used within an AuthProvider")
+  }
+  return context
 }

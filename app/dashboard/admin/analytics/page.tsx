@@ -1,5 +1,9 @@
 "use client"
 
+import { Suspense, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { useAuth } from "@/lib/auth"
+import { analyticsData } from "@/lib/mock-data"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -20,50 +24,12 @@ import {
 } from "recharts"
 import { TrendingUp, TrendingDown, Users, MessageSquare, UtensilsCrossed, Calendar, BarChart3 } from "lucide-react"
 
-// Mock data for analytics
-const complaintTrends = [
-  { month: "Jan", complaints: 45, resolved: 42 },
-  { month: "Feb", complaints: 52, resolved: 48 },
-  { month: "Mar", complaints: 38, resolved: 35 },
-  { month: "Apr", complaints: 61, resolved: 58 },
-  { month: "May", complaints: 43, resolved: 41 },
-  { month: "Jun", complaints: 29, resolved: 28 },
-]
-
-const messAttendance = [
-  { day: "Mon", breakfast: 85, lunch: 92, snacks: 78, dinner: 88 },
-  { day: "Tue", breakfast: 88, lunch: 89, snacks: 82, dinner: 91 },
-  { day: "Wed", breakfast: 82, lunch: 94, snacks: 75, dinner: 86 },
-  { day: "Thu", breakfast: 90, lunch: 87, snacks: 80, dinner: 93 },
-  { day: "Fri", breakfast: 87, lunch: 91, snacks: 85, dinner: 89 },
-  { day: "Sat", breakfast: 75, lunch: 88, snacks: 70, dinner: 82 },
-  { day: "Sun", breakfast: 78, lunch: 85, snacks: 72, dinner: 84 },
-]
-
-const complaintCategories = [
-  { name: "Maintenance", value: 45, color: "#8884d8" },
-  { name: "Cleanliness", value: 30, color: "#82ca9d" },
-  { name: "Food", value: 15, color: "#ffc658" },
-  { name: "Other", value: 10, color: "#ff7300" },
-]
-
-const studentSatisfaction = [
-  { month: "Jan", satisfaction: 78 },
-  { month: "Feb", satisfaction: 82 },
-  { month: "Mar", satisfaction: 85 },
-  { month: "Apr", satisfaction: 79 },
-  { month: "May", satisfaction: 88 },
-  { month: "Jun", satisfaction: 91 },
-]
-
-const leaveRequests = [
-  { month: "Jan", requests: 25, approved: 23 },
-  { month: "Feb", requests: 32, approved: 28 },
-  { month: "Mar", requests: 18, approved: 17 },
-  { month: "Apr", requests: 41, approved: 38 },
-  { month: "May", requests: 28, approved: 26 },
-  { month: "Jun", requests: 35, approved: 33 },
-]
+// Centralized mock data for demo
+const complaintTrends = analyticsData.complaintTrends
+const messAttendance = analyticsData.messAttendance
+const complaintCategories = analyticsData.complaintCategories
+const studentSatisfaction = analyticsData.satisfaction
+const leaveRequests = analyticsData.leaveRequests
 
 const chartConfig = {
   complaints: { label: "Complaints", color: "#ef4444" },
@@ -78,6 +44,27 @@ const chartConfig = {
 }
 
 export default function AdminAnalyticsPage() {
+  const { user, loading } = useAuth()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/login')
+    }
+  }, [user, loading, router])
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="p-6"><div className="text-sm text-muted-foreground">Loading analytics…</div></div>
+      </DashboardLayout>
+    )
+  }
+
+  if (!user) {
+    return null
+  }
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -220,7 +207,7 @@ export default function AdminAnalyticsPage() {
                         cy="50%"
                         outerRadius={80}
                         dataKey="value"
-                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                        label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
                       >
                         {complaintCategories.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />

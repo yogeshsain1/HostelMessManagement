@@ -1,11 +1,11 @@
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { forwardRef } from "react"
-import type { ButtonProps } from "@/components/ui/button"
 
-interface EnhancedButtonProps extends ButtonProps {
+interface EnhancedButtonProps extends React.ComponentProps<"button"> {
   gradient?: boolean
   glow?: boolean
+  children?: React.ReactNode
 }
 
 const EnhancedButton = forwardRef<HTMLButtonElement, EnhancedButtonProps>(

@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Clock, Star } from "lucide-react"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Clock, Star, Dot } from "lucide-react"
 
 interface MenuItem {
   name: string
@@ -24,11 +25,14 @@ const mealTypeColors = {
 
 export function MenuCard({ mealType, items, time, rating }: MenuCardProps) {
   return (
-    <Card>
+    <Card className="transition-all duration-200 hover:scale-[1.01]">
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="capitalize">{mealType}</CardTitle>
-          <Badge className={mealTypeColors[mealType]}>{mealType}</Badge>
+          <div className="flex items-center gap-2">
+            <Badge className={mealTypeColors[mealType]}>{mealType}</Badge>
+            <Badge variant="outline" className="text-xs">{items.length} items</Badge>
+          </div>
         </div>
         <div className="flex items-center space-x-4 text-sm text-muted-foreground">
           <div className="flex items-center space-x-1">
@@ -44,16 +48,21 @@ export function MenuCard({ mealType, items, time, rating }: MenuCardProps) {
         </div>
       </CardHeader>
       <CardContent>
-        <div className="space-y-2">
-          {items.map((item, index) => (
-            <div key={index} className="flex items-center justify-between">
-              <span className="text-sm">{item.name}</span>
-              <Badge variant={item.isVeg ? "secondary" : "destructive"} className="text-xs">
-                {item.isVeg ? "VEG" : "NON-VEG"}
-              </Badge>
-            </div>
-          ))}
-        </div>
+        <ScrollArea className="max-h-40 pr-2">
+          <div className="space-y-2">
+            {items.map((item, index) => (
+              <div key={index} className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Dot className={`h-5 w-5 ${item.isVeg ? 'text-green-600' : 'text-red-600'}`} />
+                  <span className="text-sm">{item.name}</span>
+                </div>
+                <Badge variant={item.isVeg ? "secondary" : "destructive"} className="text-[10px]">
+                  {item.isVeg ? "VEG" : "NON-VEG"}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        </ScrollArea>
       </CardContent>
     </Card>
   )

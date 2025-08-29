@@ -1,5 +1,7 @@
 "use client"
 
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { StatsCard } from "@/components/dashboard/stats-card"
@@ -8,28 +10,73 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { MessageSquare, Calendar, UtensilsCrossed, Clock, QrCode } from "lucide-react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { useEffect } from "react"
+import { DashboardSkeleton } from "@/components/loading-skeleton"
+import { ErrorMessage, LoadingError } from "@/components/error-message"
+import { useRetry } from "@/lib/retry"
+
+// Mock API call that can fail sometimes
+const fetchTodaysMenu = async () => {
+  await new Promise(resolve => setTimeout(resolve, 800))
+  
+  // Simulate occasional failure
+  if (Math.random() > 0.9) {
+    throw new Error("Failed to load today's menu")
+  }
+
+  return {
+    breakfast: { time: "7:00 - 9:00 AM", items: "Idli, Sambar, Coconut Chutney" },
+    lunch: { time: "12:00 - 2:00 PM", items: "Rajasthani Dal Baati, Rice, Vegetable" },
+    snacks: { time: "4:00 - 6:00 PM", items: "Samosa, Tea" },
+    dinner: { time: "7:00 - 9:00 PM", items: "Roti, Paneer Curry, Rice" }
+  }
+}
 
 export default function DashboardPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
+  const [menuData, setMenuData] = useState(null)
+  const [initialLoading, setInitialLoading] = useState(true)
+
+  const {
+    execute: loadMenu,
+    isLoading: menuLoading,
+    error: menuError
+  } = useRetry(fetchTodaysMenu, { maxAttempts: 2 })
 
   useEffect(() => {
     if (!loading && !user) {
-      router.push('/login')
+      router.push("/login")
     }
   }, [user, loading, router])
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    )
+  useEffect(() => {
+    const initializeDashboard = async () => {
+      if (user) {
+        try {
+          const menu = await loadMenu()
+          setMenuData(menu)
+        } catch (error) {
+          console.error("Failed to load menu:", error)
+        } finally {
+          setInitialLoading(false)
+        }
+      }
+    }
+
+    initializeDashboard()
+  }, [user, loadMenu])
+
+  const handleRetryMenu = async () => {
+    try {
+      const menu = await loadMenu()
+      setMenuData(menu)
+    } catch (error) {
+      console.error("Menu retry failed:", error)
+    }
+  }
+
+  if (loading || initialLoading) {
+    return <DashboardSkeleton />
   }
 
   if (!user) {
@@ -120,32 +167,52 @@ export default function DashboardPage() {
               <CardTitle className="text-lg sm:text-xl">Today's Menu</CardTitle>
             </CardHeader>
             <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
-              <div className="space-y-3 sm:space-y-4">
-                <div className="p-3 rounded-lg bg-muted/50">
-                  <h4 className="font-medium text-sm">Breakfast (7:00 - 9:00 AM)</h4>
-                  <p className="text-xs sm:text-sm text-muted-foreground mt-1">Idli, Sambar, Coconut Chutney</p>
+              {menuLoading ? (
+                <div className="space-y-3">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="p-3 rounded-lg bg-muted/20 animate-pulse">
+                      <div className="h-4 bg-gray-300 rounded w-1/3 mb-2" />
+                      <div className="h-3 bg-gray-200 rounded w-3/4" />
+                    </div>
+                  ))}
                 </div>
-                <div className="p-3 rounded-lg bg-muted/50">
-                  <h4 className="font-medium text-sm">Lunch (12:00 - 2:00 PM)</h4>
-                  <p className="text-xs sm:text-sm text-muted-foreground mt-1">Rajasthani Dal Baati, Rice, Vegetable</p>
+              ) : menuError ? (
+                <LoadingError 
+                  message="Failed to load today's menu"
+                  onRetry={handleRetryMenu}
+                />
+              ) : menuData ? (
+                <div className="space-y-3 sm:space-y-4">
+                  <div className="p-3 rounded-lg bg-muted/50">
+                    <h4 className="font-medium text-sm">Breakfast ({menuData.breakfast.time})</h4>
+                    <p className="text-xs sm:text-sm text-muted-foreground mt-1">{menuData.breakfast.items}</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/50">
+                    <h4 className="font-medium text-sm">Lunch ({menuData.lunch.time})</h4>
+                    <p className="text-xs sm:text-sm text-muted-foreground mt-1">{menuData.lunch.items}</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/50">
+                    <h4 className="font-medium text-sm">Snacks ({menuData.snacks.time})</h4>
+                    <p className="text-xs sm:text-sm text-muted-foreground mt-1">{menuData.snacks.items}</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/50">
+                    <h4 className="font-medium text-sm">Dinner ({menuData.dinner.time})</h4>
+                    <p className="text-xs sm:text-sm text-muted-foreground mt-1">{menuData.dinner.items}</p>
+                  </div>
+                  <Button
+                    asChild
+                    variant="outline"
+                    size="sm"
+                    className="w-full bg-transparent transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] h-10"
+                  >
+                    <Link href="/dashboard/mess">View Full Menu</Link>
+                  </Button>
                 </div>
-                <div className="p-3 rounded-lg bg-muted/50">
-                  <h4 className="font-medium text-sm">Snacks (4:00 - 6:00 PM)</h4>
-                  <p className="text-xs sm:text-sm text-muted-foreground mt-1">Samosa, Tea</p>
+              ) : (
+                <div className="text-center text-muted-foreground py-4">
+                  <p>No menu data available</p>
                 </div>
-                <div className="p-3 rounded-lg bg-muted/50">
-                  <h4 className="font-medium text-sm">Dinner (7:00 - 9:00 PM)</h4>
-                  <p className="text-xs sm:text-sm text-muted-foreground mt-1">Roti, Paneer Curry, Rice</p>
-                </div>
-                <Button
-                  asChild
-                  variant="outline"
-                  size="sm"
-                  className="w-full bg-transparent transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] h-10"
-                >
-                  <Link href="/dashboard/mess">View Full Menu</Link>
-                </Button>
-              </div>
+              )}
             </CardContent>
           </Card>
         </div>

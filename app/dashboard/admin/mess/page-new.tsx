@@ -66,6 +66,7 @@ const mockMenuData = {
         { name: "Tea/Coffee", isVeg: true },
       ],
       time: "7:00 AM - 9:00 AM",
+      rating: 4.2,
     },
     lunch: {
       items: [
@@ -76,6 +77,7 @@ const mockMenuData = {
         { name: "Papad", isVeg: true },
       ],
       time: "12:00 PM - 2:00 PM",
+      rating: 4.6,
     },
     snacks: {
       items: [
@@ -84,6 +86,7 @@ const mockMenuData = {
         { name: "Tea/Coffee", isVeg: true },
       ],
       time: "4:00 PM - 6:00 PM",
+      rating: 4.0,
     },
     dinner: {
       items: [
@@ -94,6 +97,7 @@ const mockMenuData = {
         { name: "Onion Salad", isVeg: true },
       ],
       time: "7:30 PM - 9:30 PM",
+      rating: 4.3,
     },
   },
 }

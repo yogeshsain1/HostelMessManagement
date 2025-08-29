@@ -13,7 +13,7 @@ export default function SettingsPage() {
   const [notifications, setNotifications] = useState(true);
   const [smsNotifications, setSmsNotifications] = useState(false);
   const [emailNotifications, setEmailNotifications] = useState(true);
-  const [twoFAEnabled, setTwoFAEnabled] = useState(!!user?.twoFASecret);
+    const [twoFAEnabled, setTwoFAEnabled] = useState(false);
   const [feedback, setFeedback] = useState("");
 
   // Simulate API call for saving settings

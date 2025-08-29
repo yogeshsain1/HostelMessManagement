@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { MenuCard } from "@/components/mess/menu-card"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -210,28 +210,7 @@ const quickActions = [
 
 export default function AdminMessPage() {
   const [selectedDay, setSelectedDay] = useState<"today" | "tomorrow">("today")
-  const [userCount, setUserCount] = useState<number | null>(null);
-  const [complaintCount, setComplaintCount] = useState<number | null>(null);
   const currentMenu = mockMenuData[selectedDay]
-
-  const getAuthHeaders = (): Record<string, string> => {
-    const token = localStorage.getItem('auth-token');
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-    return headers;
-  };
-
-  useEffect(() => {
-    fetch("/api/users/count", { headers: getAuthHeaders() })
-      .then(res => res.json())
-      .then(data => setUserCount(data.count));
-    
-    fetch("/api/complaints/count", { headers: getAuthHeaders() })
-      .then(res => res.json())
-      .then(data => setComplaintCount(data.count));
-  }, []);
 
   return (
     <DashboardLayout>
@@ -266,20 +245,12 @@ export default function AdminMessPage() {
               <div className="flex items-center space-x-2">
                 <Users className="h-4 w-4 text-muted-foreground" />
                 <div className="space-y-1">
-                  <p className="text-sm font-medium">Total Users</p>
-                  <p className="text-2xl font-bold">{userCount !== null ? userCount : "..."}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-2">
-                <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-                <div className="space-y-1">
-                  <p className="text-sm font-medium">Total Complaints</p>
-                  <p className="text-2xl font-bold">{complaintCount !== null ? complaintCount : "..."}</p>
+                  <p className="text-sm font-medium">Today's Attendance</p>
+                  <p className="text-2xl font-bold">{mockStats.todaysAttendance}/{mockStats.totalStudents}</p>
+                  <div className="flex items-center space-x-1">
+                    <TrendingUp className="h-3 w-3 text-green-600" />
+                    <span className="text-xs text-green-600">+{mockStats.weeklyTrend}%</span>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -306,6 +277,19 @@ export default function AdminMessPage() {
                   <p className="text-sm font-medium">Average Rating</p>
                   <p className="text-2xl font-bold">{mockStats.avgRating}/5</p>
                   <p className="text-xs text-muted-foreground">Based on 1,247 reviews</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-2">
+                <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Active Complaints</p>
+                  <p className="text-2xl font-bold">{mockStats.activeComplaints}</p>
+                  <p className="text-xs text-muted-foreground">Require attention</p>
                 </div>
               </div>
             </CardContent>

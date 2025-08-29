@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Clock, MessageSquare, Calendar, UtensilsCrossed } from "lucide-react"
+import { activities as mockActivities } from "@/lib/mock-data"
 
 interface ActivityItem {
   id: string
@@ -11,38 +12,7 @@ interface ActivityItem {
   status?: string
 }
 
-const mockActivities: ActivityItem[] = [
-  {
-    id: "1",
-    type: "complaint",
-    title: "AC Repair Request",
-    description: "Your complaint about AC in room A101 is being processed",
-    timestamp: "2 hours ago",
-    status: "in-progress",
-  },
-  {
-    id: "2",
-    type: "leave",
-    title: "Leave Request Approved",
-    description: "Your leave request for Dec 15-20 has been approved",
-    timestamp: "1 day ago",
-    status: "approved",
-  },
-  {
-    id: "3",
-    type: "mess",
-    title: "Menu Updated",
-    description: "Tomorrow's dinner menu has been updated",
-    timestamp: "2 days ago",
-  },
-  {
-    id: "4",
-    type: "notification",
-    title: "Hostel Meeting",
-    description: "Monthly hostel meeting scheduled for Dec 25",
-    timestamp: "3 days ago",
-  },
-]
+// data imported from mock-data.ts
 
 const getIcon = (type: ActivityItem["type"]) => {
   switch (type) {

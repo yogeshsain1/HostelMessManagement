@@ -35,7 +35,7 @@ const mockNotifications: Notification[] = [
     type: "info",
     category: "complaint",
     read: false,
-    createdAt: "2024-01-15T10:30:00Z",
+    createdAt: new Date().toISOString(),
     actionUrl: "/dashboard/complaints",
   },
   {
@@ -45,7 +45,7 @@ const mockNotifications: Notification[] = [
     type: "success",
     category: "leave",
     read: false,
-    createdAt: "2024-01-15T09:15:00Z",
+    createdAt: new Date().toISOString(),
     actionUrl: "/dashboard/leave",
   },
   {
@@ -55,26 +55,8 @@ const mockNotifications: Notification[] = [
     type: "info",
     category: "mess",
     read: true,
-    createdAt: "2024-01-14T16:45:00Z",
+    createdAt: new Date().toISOString(),
     actionUrl: "/dashboard/mess",
-  },
-  {
-    id: "4",
-    title: "Hostel Meeting",
-    message: "Monthly hostel meeting scheduled for Dec 25 at 6 PM",
-    type: "warning",
-    category: "announcement",
-    read: false,
-    createdAt: "2024-01-14T14:20:00Z",
-  },
-  {
-    id: "5",
-    title: "System Maintenance",
-    message: "System will be under maintenance tomorrow from 2-4 AM",
-    type: "warning",
-    category: "system",
-    read: true,
-    createdAt: "2024-01-13T18:00:00Z",
   },
 ]
 
