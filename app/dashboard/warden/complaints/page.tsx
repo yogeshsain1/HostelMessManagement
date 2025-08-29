@@ -24,7 +24,9 @@ import {
   Phone,
   Mail,
   Building,
-  Calendar
+  Calendar,
+  Shield,
+  UtensilsCrossed
 } from "lucide-react"
 import { toast } from "sonner"
 
