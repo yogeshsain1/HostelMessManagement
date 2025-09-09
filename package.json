@@ -63,6 +63,7 @@
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.454.0",
     "mini-css-extract-plugin": "^2.9.4",
+    "mongodb": "^6.19.0",
     "multer": "^2.0.2",
     "next": "15.2.4",
     "next-i18next": "^15.4.2",

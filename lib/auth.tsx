@@ -9,20 +9,11 @@ export interface User {
   email: string
   fullName: string
   phone?: string
-  role: "student" | "warden" | "admin"
-  hostelId?: string
-  roomNumber?: string
-  addressLine1?: string
-  addressLine2?: string
-  city?: string
-  state?: string
-  postalCode?: string
-  emergencyContactName?: string
-  emergencyContactPhone?: string
-  course?: string
-  year?: string
-  profileImageUrl?: string
-  twoFactorEnabled?: boolean
+  role: "STUDENT" | "WARDEN" | "ADMIN"
+  hostel?: string
+  room?: string
+  createdAt?: string
+  updatedAt?: string
 }
 
 interface AuthContextType {
@@ -43,24 +34,24 @@ const mockUsers: User[] = [
     email: "admin@poornima.edu.in",
     fullName: "Admin User",
     phone: "+91-9876543210",
-    role: "admin",
+    role: "ADMIN",
   },
   {
     id: "2",
     email: "warden1@poornima.edu.in",
     fullName: "Warden Sharma",
     phone: "+91-9876543211",
-    role: "warden",
-    hostelId: "1",
+    role: "WARDEN",
+    hostel: "1",
   },
   {
     id: "3",
     email: "student1@poornima.edu.in",
     fullName: "Rahul Kumar",
     phone: "+91-9876543212",
-    role: "student",
-    hostelId: "1",
-    roomNumber: "A-101",
+    role: "STUDENT",
+    hostel: "1",
+    room: "A-101",
   },
 ]
 
@@ -78,33 +69,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    // Mock authentication - in real app, this would call an API
-    console.log('Login attempt:', { email, password })
-    console.log('Available users:', mockUsers.map(u => u.email))
-    
-    const foundUser = mockUsers.find((u) => u.email === email)
-    console.log('Found user:', foundUser)
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      })
 
-    // Simple password check for demo
-    if (foundUser && (password === "password123" || password === "demo123")) {
-      setUser(foundUser)
-      localStorage.setItem("hostel-user", JSON.stringify(foundUser))
-      try {
-        document.cookie = "hostel-auth=1; path=/; SameSite=Lax"
-      } catch (_) {}
-      console.log('Login successful')
-      return true
+      if (response.ok) {
+        const data = await response.json()
+        setUser(data.user)
+        // Store token in localStorage for persistence
+        localStorage.setItem('hostel-token', data.token)
+        localStorage.setItem('hostel-user', JSON.stringify(data.user))
+        try {
+          document.cookie = 'hostel-auth=1; path=/; SameSite=Lax'
+        } catch (_) {}
+        console.log('Login successful')
+        return true
+      } else {
+        const error = await response.json()
+        console.error('Login failed:', error.error)
+        return false
+      }
+    } catch (error) {
+      console.error('Login error:', error)
+      return false
     }
-    console.log('Login failed')
-    return false
   }
 
   const logout = () => {
     setUser(null)
-    localStorage.removeItem("hostel-user")
+    localStorage.removeItem('hostel-user')
+    localStorage.removeItem('hostel-token')
     // Navigation will be handled by the component calling this function
     try {
-      document.cookie = "hostel-auth=; Max-Age=0; path=/; SameSite=Lax"
+      document.cookie = 'hostel-auth=; Max-Age=0; path=/; SameSite=Lax'
     } catch (_) {}
   }
 

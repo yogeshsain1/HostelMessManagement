@@ -1,0 +1,122 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STUDENT
+  WARDEN
+  ADMIN
+}
+
+enum ComplaintStatus {
+  PENDING
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  email       String   @unique
+  password    String
+  fullName    String
+  role        Role     @default(STUDENT)
+  hostel      String?
+  room        String?
+  phone       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  complaints      Complaint[]
+  leaveRequests   LeaveRequest[]
+  attendances     Attendance[]
+  notifications   Notification[]
+  assignedComplaints Complaint[] @relation("AssignedComplaints")
+  approvedLeaves     LeaveRequest[] @relation("ApprovedLeaves")
+
+  @@map("users")
+}
+
+model Complaint {
+  id          String          @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String
+  category    String
+  status      ComplaintStatus @default(PENDING)
+  priority    String          @default("MEDIUM")
+  studentId   String          @db.ObjectId
+  student     User            @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  assignedTo  String?         @db.ObjectId
+  assignedWarden User?        @relation("AssignedComplaints", fields: [assignedTo], references: [id])
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  resolvedAt  DateTime?
+
+  @@map("complaints")
+}
+
+model LeaveRequest {
+  id          String      @id @default(auto()) @map("_id") @db.ObjectId
+  type        String
+  reason      String
+  startDate   DateTime
+  endDate     DateTime
+  status      LeaveStatus @default(PENDING)
+  studentId   String      @db.ObjectId
+  student     User        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  approvedBy  String?     @db.ObjectId
+  approvedWarden User?    @relation("ApprovedLeaves", fields: [approvedBy], references: [id])
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@map("leave_requests")
+}
+
+model MessMenu {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  date        DateTime
+  mealType    String   // breakfast, lunch, dinner
+  items       String[] // array of food items
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("mess_menus")
+}
+
+model Attendance {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  studentId   String   @db.ObjectId
+  student     User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  date        DateTime
+  mealType    String
+  attended    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@map("attendances")
+}
+
+model Notification {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @db.ObjectId
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  message     String
+  read        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@map("notifications")
+}

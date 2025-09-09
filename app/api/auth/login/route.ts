@@ -1,43 +1,72 @@
-import { z } from "zod"
-import { badRequest, ok, serverError } from "@/lib/api"
+import { NextRequest, NextResponse } from 'next/server'
+import { PrismaClient } from '@prisma/client'
+import bcrypt from 'bcryptjs'
+import jwt from 'jsonwebtoken'
+import { z } from 'zod'
+
+const prisma = new PrismaClient()
 
 const LoginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6).max(100),
 })
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const json = await request.json().catch(() => ({}))
     const parse = LoginSchema.safeParse(json)
     if (!parse.success) {
-      return badRequest("Invalid credentials payload", parse.error.format())
+      return NextResponse.json(
+        { error: 'Invalid credentials payload', details: parse.error.format() },
+        { status: 400 }
+      )
     }
 
     const { email, password } = parse.data
 
-    // Demo-only: accept fixed passwords
-    const valid = password === "demo123" || password === "password123"
-    if (!valid) {
-      return badRequest("Invalid email or password")
-    }
-
-    // Mock role inference from email for demo
-    const role = email.includes("admin") ? "admin" : email.includes("warden") ? "warden" : "student"
-    const user = {
-      id: "demo-" + role,
-      email,
-      fullName: role === "admin" ? "Admin User" : role === "warden" ? "Warden User" : "Student User",
-      role,
-    }
-
-    return ok(user, {
-      headers: {
-        "set-cookie": `hostel-auth=1; Path=/; SameSite=Lax; HttpOnly; Max-Age=${60 * 60 * 8}`,
-      },
+    // Find user in database
+    const user = await prisma.user.findUnique({
+      where: { email }
     })
-  } catch (err) {
-    return serverError("Login failed", err)
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Invalid email or password' },
+        { status: 401 }
+      )
+    }
+
+    // Check password
+    const isValidPassword = await bcrypt.compare(password, user.password)
+    if (!isValidPassword) {
+      return NextResponse.json(
+        { error: 'Invalid email or password' },
+        { status: 401 }
+      )
+    }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: user.id, email: user.email, role: user.role },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '7d' }
+    )
+
+    // Return user data and token
+    const { password: _, ...userWithoutPassword } = user
+    return NextResponse.json({
+      user: userWithoutPassword,
+      token
+    })
+
+  } catch (error) {
+    console.error('Login error:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  } finally {
+    await prisma.$disconnect()
   }
 }
 
