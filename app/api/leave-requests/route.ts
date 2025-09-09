@@ -4,54 +4,54 @@ import { z } from 'zod'
 
 const prisma = new PrismaClient()
 
-const CreateComplaintSchema = z.object({
-  title: z.string().min(5).max(200),
-  description: z.string().min(10).max(1000),
-  category: z.string().min(2).max(50),
-  priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']).default('MEDIUM'),
+const CreateLeaveRequestSchema = z.object({
+  type: z.string().min(2).max(50),
+  reason: z.string().min(10).max(500),
+  startDate: z.string().datetime(),
+  endDate: z.string().datetime(),
   studentId: z.string().optional(), // Will be extracted from auth token
 })
 
-const UpdateComplaintSchema = z.object({
-  title: z.string().min(5).max(200).optional(),
-  description: z.string().min(10).max(1000).optional(),
-  category: z.string().min(2).max(50).optional(),
-  priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']).optional(),
-  status: z.enum(['PENDING', 'IN_PROGRESS', 'RESOLVED', 'CLOSED']).optional(),
-  assignedTo: z.string().optional(),
+const UpdateLeaveRequestSchema = z.object({
+  type: z.string().min(2).max(50).optional(),
+  reason: z.string().min(10).max(500).optional(),
+  startDate: z.string().datetime().optional(),
+  endDate: z.string().datetime().optional(),
+  status: z.enum(['PENDING', 'APPROVED', 'REJECTED']).optional(),
+  approvedBy: z.string().optional(),
 })
 
-// GET /api/complaints - Get all complaints (with filtering)
+// GET /api/leave-requests - Get all leave requests (with filtering)
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
     const studentId = searchParams.get('studentId')
-    const assignedTo = searchParams.get('assignedTo')
+    const approvedBy = searchParams.get('approvedBy')
 
     const where: any = {}
     if (status) where.status = status
     if (studentId) where.studentId = studentId
-    if (assignedTo) where.assignedTo = assignedTo
+    if (approvedBy) where.approvedBy = approvedBy
 
-    const complaints = await prisma.complaint.findMany({
+    const leaveRequests = await prisma.leaveRequest.findMany({
       where,
       include: {
         student: {
           select: { id: true, fullName: true, email: true, role: true }
         },
-        assignedWarden: {
+        approvedWarden: {
           select: { id: true, fullName: true, email: true, role: true }
         }
       },
       orderBy: { createdAt: 'desc' }
     })
 
-    return NextResponse.json(complaints)
+    return NextResponse.json(leaveRequests)
   } catch (error) {
-    console.error('Get complaints error:', error)
+    console.error('Get leave requests error:', error)
     return NextResponse.json(
-      { error: 'Failed to fetch complaints' },
+      { error: 'Failed to fetch leave requests' },
       { status: 500 }
     )
   } finally {
@@ -59,30 +59,29 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/complaints - Create new complaint
+// POST /api/leave-requests - Create new leave request
 export async function POST(request: NextRequest) {
   try {
     const json = await request.json().catch(() => ({}))
-    const parse = CreateComplaintSchema.safeParse(json)
+    const parse = CreateLeaveRequestSchema.safeParse(json)
     if (!parse.success) {
       return NextResponse.json(
-        { error: 'Invalid complaint data', details: parse.error.format() },
+        { error: 'Invalid leave request data', details: parse.error.format() },
         { status: 400 }
       )
     }
 
-    const { title, description, category, priority, studentId } = parse.data
+    const { type, reason, startDate, endDate, studentId } = parse.data
 
     // In production, extract studentId from JWT token
-    // For now, use provided studentId or default
     const finalStudentId = studentId || 'demo-student-id'
 
-    const complaint = await prisma.complaint.create({
+    const leaveRequest = await prisma.leaveRequest.create({
       data: {
-        title,
-        description,
-        category,
-        priority,
+        type,
+        reason,
+        startDate: new Date(startDate),
+        endDate: new Date(endDate),
         studentId: finalStudentId,
       },
       include: {
@@ -92,15 +91,14 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    return NextResponse.json(complaint, { status: 201 })
+    return NextResponse.json(leaveRequest, { status: 201 })
   } catch (error) {
-    console.error('Create complaint error:', error)
+    console.error('Create leave request error:', error)
     return NextResponse.json(
-      { error: 'Failed to create complaint' },
+      { error: 'Failed to create leave request' },
       { status: 500 }
     )
   } finally {
     await prisma.$disconnect()
   }
 }
-
