@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Star, Loader2 } from "lucide-react"
+import { Star } from "lucide-react"
 
 export function FeedbackForm() {
   const [rating, setRating] = useState(0)
@@ -16,46 +16,13 @@ export function FeedbackForm() {
   const [mealType, setMealType] = useState("")
   const [comment, setComment] = useState("")
   const [submitted, setSubmitted] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState("")
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-
-    if (!mealType || rating === 0) return
-
-    try {
-      setSubmitting(true)
-      setError("")
-
-      const response = await fetch('/api/mess/feedback', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          rating,
-          mealType: mealType.toUpperCase(),
-          comment: comment || undefined,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to submit feedback')
-      }
-
-      setSubmitted(true)
-      setRating(0)
-      setMealType("")
-      setComment("")
-
-      setTimeout(() => setSubmitted(false), 3000)
-    } catch (err) {
-      setError('Failed to submit feedback. Please try again.')
-      console.error('Error submitting feedback:', err)
-    } finally {
-      setSubmitting(false)
-    }
+    // In a real app, this would submit to an API
+    console.log("Feedback submitted:", { rating, mealType, comment })
+    setSubmitted(true)
+    setTimeout(() => setSubmitted(false), 3000)
   }
 
   const handleRatingClick = (value: number) => {
@@ -78,12 +45,6 @@ export function FeedbackForm() {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-6">
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded text-sm">
-                {error}
-              </div>
-            )}
-
             <div className="space-y-2">
               <Label>Meal Type</Label>
               <Select value={mealType} onValueChange={setMealType}>
@@ -109,7 +70,6 @@ export function FeedbackForm() {
                     onClick={() => handleRatingClick(value)}
                     onMouseEnter={() => setHoveredRating(value)}
                     onMouseLeave={() => setHoveredRating(0)}
-                    disabled={submitting}
                   >
                     <Star
                       className={`h-6 w-6 transition-colors ${
@@ -137,19 +97,11 @@ export function FeedbackForm() {
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
                 rows={4}
-                disabled={submitting}
               />
             </div>
 
-            <Button type="submit" className="w-full" disabled={!mealType || rating === 0 || submitting}>
-              {submitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Submitting...
-                </>
-              ) : (
-                "Submit Feedback"
-              )}
+            <Button type="submit" className="w-full" disabled={!mealType || rating === 0}>
+              Submit Feedback
             </Button>
           </form>
         )}

@@ -5,15 +5,15 @@ import { Clock, Star, Dot } from "lucide-react"
 
 interface MenuItem {
   name: string
-  isVeg: boolean // We'll determine this based on common patterns
+  description?: string
+  isVeg: boolean
 }
 
 interface MenuCardProps {
-  mealType: string
-  items: string[]
+  mealType: "breakfast" | "lunch" | "snacks" | "dinner"
+  items: MenuItem[]
   time: string
   rating?: number
-  date?: string
 }
 
 const mealTypeColors = {
@@ -23,29 +23,14 @@ const mealTypeColors = {
   dinner: "bg-blue-100 text-blue-800",
 }
 
-// Helper function to determine if an item is vegetarian based on common patterns
-const isVegetarian = (itemName: string): boolean => {
-  const nonVegKeywords = ['chicken', 'mutton', 'fish', 'pork', 'beef', 'egg', 'meat']
-  const lowerName = itemName.toLowerCase()
-  return !nonVegKeywords.some(keyword => lowerName.includes(keyword))
-}
-
-export function MenuCard({ mealType, items, time, rating, date }: MenuCardProps) {
-  // Convert string array to MenuItem array with veg/non-veg classification
-  const menuItems: MenuItem[] = items.map(item => ({
-    name: item,
-    isVeg: isVegetarian(item)
-  }))
-
+export function MenuCard({ mealType, items, time, rating }: MenuCardProps) {
   return (
     <Card className="transition-all duration-200 hover:scale-[1.01]">
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="capitalize">{mealType}</CardTitle>
           <div className="flex items-center gap-2">
-            <Badge className={mealTypeColors[mealType.toLowerCase() as keyof typeof mealTypeColors] || "bg-gray-100 text-gray-800"}>
-              {mealType}
-            </Badge>
+            <Badge className={mealTypeColors[mealType]}>{mealType}</Badge>
             <Badge variant="outline" className="text-xs">{items.length} items</Badge>
           </div>
         </div>
@@ -54,11 +39,6 @@ export function MenuCard({ mealType, items, time, rating, date }: MenuCardProps)
             <Clock className="h-4 w-4" />
             <span>{time}</span>
           </div>
-          {date && (
-            <div className="flex items-center space-x-1">
-              <span>{new Date(date).toLocaleDateString()}</span>
-            </div>
-          )}
           {rating && (
             <div className="flex items-center space-x-1">
               <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
@@ -70,7 +50,7 @@ export function MenuCard({ mealType, items, time, rating, date }: MenuCardProps)
       <CardContent>
         <ScrollArea className="max-h-40 pr-2">
           <div className="space-y-2">
-            {menuItems.map((item, index) => (
+            {items.map((item, index) => (
               <div key={index} className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Dot className={`h-5 w-5 ${item.isVeg ? 'text-green-600' : 'text-red-600'}`} />

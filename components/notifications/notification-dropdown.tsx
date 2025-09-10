@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { io } from "socket.io-client"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -12,113 +13,44 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Bell, Check, Trash2, Eye, Loader2 } from "lucide-react"
+import { useNotifications } from "@/lib/notifications"
+import { Bell, Check, Trash2, Eye } from "lucide-react"
 import Link from "next/link"
 
-interface Notification {
-  id: string
-  userId: string
-  title: string
-  message: string
-  read: boolean
-  createdAt: string
-}
-
 export function NotificationDropdown() {
-  const [notifications, setNotifications] = useState<Notification[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState("")
+  const { notifications, unreadCount, addNotification, markAsRead, markAllAsRead, deleteNotification } = useNotifications()
   const [isOpen, setIsOpen] = useState(false)
 
-  // Fetch notifications from API
-  const fetchNotifications = async () => {
-    try {
-      setLoading(true)
-      const response = await fetch('/api/notifications')
-      if (!response.ok) {
-        throw new Error('Failed to fetch notifications')
-      }
-      const data = await response.json()
-      setNotifications(data)
-      setError("")
-    } catch (err) {
-      setError('Failed to load notifications')
-      console.error('Error fetching notifications:', err)
-    } finally {
-      setLoading(false)
-    }
-  }
-
+  // WebSocket connection for real-time notifications
   useEffect(() => {
-    fetchNotifications()
-  }, [])
-
-  // Mark notification as read
-  const markAsRead = async (id: string) => {
-    try {
-      const response = await fetch(`/api/notifications/${id}`, {
-        method: 'PUT',
+    const socket = io("http://localhost:4001") // Change to your backend WebSocket URL
+    socket.on("notification", (data) => {
+      addNotification({
+        title: data.title,
+        message: data.message,
+        type: data.type || "info",
+        category: data.category || "system",
+        actionUrl: data.actionUrl,
       })
-
-      if (!response.ok) {
-        throw new Error('Failed to mark notification as read')
-      }
-
-      // Update local state
-      setNotifications(prev =>
-        prev.map(notification =>
-          notification.id === id ? { ...notification, read: true } : notification
-        )
-      )
-    } catch (err) {
-      console.error('Error marking notification as read:', err)
+    })
+    return () => {
+      socket.disconnect()
     }
-  }
+  }, [addNotification])
 
-  // Mark all notifications as read
-  const markAllAsRead = async () => {
-    try {
-      // Mark all unread notifications as read
-      const unreadNotifications = notifications.filter(n => !n.read)
-
-      await Promise.all(
-        unreadNotifications.map(notification =>
-          fetch(`/api/notifications/${notification.id}`, { method: 'PUT' })
-        )
-      )
-
-      // Update local state
-      setNotifications(prev =>
-        prev.map(notification => ({ ...notification, read: true }))
-      )
-    } catch (err) {
-      console.error('Error marking all notifications as read:', err)
-    }
-  }
-
-  // Delete notification
-  const deleteNotification = async (id: string) => {
-    try {
-      const response = await fetch(`/api/notifications/${id}`, {
-        method: 'DELETE',
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to delete notification')
-      }
-
-      // Update local state
-      setNotifications(prev => prev.filter(notification => notification.id !== id))
-    } catch (err) {
-      console.error('Error deleting notification:', err)
-    }
-  }
-
-  const unreadCount = notifications.filter(n => !n.read).length
   const recentNotifications = notifications.slice(0, 5)
 
-  const getNotificationIcon = (read: boolean) => {
-    return read ? "🔵" : "🟢"
+  const getNotificationIcon = (type: string) => {
+    switch (type) {
+      case "success":
+        return "🟢"
+      case "warning":
+        return "🟡"
+      case "error":
+        return "🔴"
+      default:
+        return "🔵"
+    }
   }
 
   const formatTime = (dateString: string) => {
@@ -155,17 +87,12 @@ export function NotificationDropdown() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
 
-        {loading ? (
-          <div className="p-4 text-center">
-            <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">Loading notifications...</p>
-          </div>
-        ) : recentNotifications.length === 0 ? (
+        {recentNotifications.length === 0 ? (
           <div className="p-4 text-center text-sm text-muted-foreground">No notifications</div>
         ) : (
           <ScrollArea className="h-80">
             {recentNotifications.map((notification) => (
-              <div key={notification.id} className="relative group">
+              <div key={notification.id} className="relative">
                 <DropdownMenuItem
                   className={`p-4 cursor-pointer ${!notification.read ? "bg-muted/50" : ""}`}
                   onClick={() => {
@@ -174,21 +101,38 @@ export function NotificationDropdown() {
                     }
                     setIsOpen(false)
                   }}
+                  asChild
                 >
-                  <div className="flex items-start space-x-3">
-                    <span className="text-lg">{getNotificationIcon(notification.read)}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">{notification.title}</p>
-                      <p className="text-xs text-muted-foreground line-clamp-2">{notification.message}</p>
-                      <p className="text-xs text-muted-foreground mt-1">{formatTime(notification.createdAt)}</p>
-                    </div>
-                    {!notification.read && <div className="w-2 h-2 bg-primary rounded-full mt-1"></div>}
+                  <div>
+                    {notification.actionUrl ? (
+                      <Link href={notification.actionUrl} className="block w-full">
+                        <div className="flex items-start space-x-3">
+                          <span className="text-lg">{getNotificationIcon(notification.type)}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium">{notification.title}</p>
+                            <p className="text-xs text-muted-foreground line-clamp-2">{notification.message}</p>
+                            <p className="text-xs text-muted-foreground mt-1">{formatTime(notification.createdAt)}</p>
+                          </div>
+                          {!notification.read && <div className="w-2 h-2 bg-primary rounded-full mt-1"></div>}
+                        </div>
+                      </Link>
+                    ) : (
+                      <div className="flex items-start space-x-3">
+                        <span className="text-lg">{getNotificationIcon(notification.type)}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium">{notification.title}</p>
+                          <p className="text-xs text-muted-foreground line-clamp-2">{notification.message}</p>
+                          <p className="text-xs text-muted-foreground mt-1">{formatTime(notification.createdAt)}</p>
+                        </div>
+                        {!notification.read && <div className="w-2 h-2 bg-primary rounded-full mt-1"></div>}
+                      </div>
+                    )}
                   </div>
                 </DropdownMenuItem>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="absolute top-2 right-2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute top-2 right-2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100"
                   onClick={(e) => {
                     e.stopPropagation()
                     deleteNotification(notification.id)

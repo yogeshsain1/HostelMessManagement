@@ -1,61 +1,35 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { QrCode, CheckCircle, Clock, AlertCircle, Loader2 } from "lucide-react"
+import { QrCode, CheckCircle, Clock, AlertCircle } from "lucide-react"
 
 interface AttendanceRecord {
-  id: string
-  studentId: string
   date: string
-  mealType: string
-  attended: boolean
-  createdAt: string
-  student: {
-    id: string
-    fullName: string
-    email: string
-    role: string
-  }
+  mealType: "breakfast" | "lunch" | "dinner"
+  checkedIn: boolean
+  time?: string
 }
+
+const mockAttendance: AttendanceRecord[] = [
+  { date: "2024-01-15", mealType: "breakfast", checkedIn: true, time: "08:30 AM" },
+  { date: "2024-01-15", mealType: "lunch", checkedIn: true, time: "12:45 PM" },
+  { date: "2024-01-15", mealType: "dinner", checkedIn: false },
+  { date: "2024-01-14", mealType: "breakfast", checkedIn: true, time: "08:15 AM" },
+  { date: "2024-01-14", mealType: "lunch", checkedIn: true, time: "01:00 PM" },
+  { date: "2024-01-14", mealType: "dinner", checkedIn: true, time: "07:30 PM" },
+]
 
 export function QRScanner() {
   const [isScanning, setIsScanning] = useState(false)
   const [lastScan, setLastScan] = useState<{ meal: string; time: string } | null>(null)
-  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState("")
 
-  // Fetch attendance records
-  const fetchAttendance = async () => {
-    try {
-      setLoading(true)
-      const response = await fetch('/api/mess/attendance')
-      if (!response.ok) {
-        throw new Error('Failed to fetch attendance records')
-      }
-      const data = await response.json()
-      setAttendanceRecords(data)
-      setError("")
-    } catch (err) {
-      setError('Failed to load attendance records')
-      console.error('Error fetching attendance:', err)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchAttendance()
-  }, [])
-
-  const handleScan = async () => {
+  const handleScan = () => {
     setIsScanning(true)
-    setError("")
-
-    try {
+    // Simulate QR scan
+    setTimeout(() => {
       const currentTime = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
       const currentHour = new Date().getHours()
       let mealType = "breakfast"
@@ -66,44 +40,13 @@ export function QRScanner() {
         mealType = "dinner"
       }
 
-      // Mark attendance via API
-      const response = await fetch('/api/mess/attendance', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          studentId: 'demo-student-id', // In production, get from auth context
-          date: new Date().toISOString(),
-          mealType,
-          attended: true,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to mark attendance')
-      }
-
       setLastScan({ meal: mealType, time: currentTime })
-
-      // Refresh attendance records
-      await fetchAttendance()
-    } catch (err) {
-      setError('Failed to mark attendance. Please try again.')
-      console.error('Error marking attendance:', err)
-    } finally {
       setIsScanning(false)
-    }
+    }, 2000)
   }
 
   return (
     <div className="space-y-6">
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-          {error}
-        </div>
-      )}
-
       {/* QR Scanner */}
       <Card>
         <CardHeader>
@@ -128,14 +71,7 @@ export function QRScanner() {
           </div>
 
           <Button onClick={handleScan} disabled={isScanning} className="w-full">
-            {isScanning ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                Scanning...
-              </>
-            ) : (
-              "Scan QR Code"
-            )}
+            {isScanning ? "Scanning..." : "Scan QR Code"}
           </Button>
 
           {lastScan && (
@@ -158,46 +94,34 @@ export function QRScanner() {
           <CardTitle>Recent Attendance</CardTitle>
         </CardHeader>
         <CardContent>
-          {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin" />
-              <span className="ml-2">Loading attendance...</span>
-            </div>
-          ) : attendanceRecords.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No attendance records found
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {attendanceRecords.slice(0, 10).map((record) => (
-                <div key={record.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <div className="flex items-center space-x-2">
-                      {record.attended ? (
-                        <CheckCircle className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <AlertCircle className="h-4 w-4 text-red-600" />
-                      )}
-                      <span className="text-sm font-medium capitalize">{record.mealType}</span>
-                    </div>
-                    <Badge variant="outline" className="text-xs">
-                      {new Date(record.date).toLocaleDateString()}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                    {record.attended ? (
-                      <>
-                        <Clock className="h-3 w-3" />
-                        <span>{new Date(record.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
-                      </>
+          <div className="space-y-3">
+            {mockAttendance.map((record, index) => (
+              <div key={index} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                <div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-2">
+                    {record.checkedIn ? (
+                      <CheckCircle className="h-4 w-4 text-green-600" />
                     ) : (
-                      <span className="text-red-600">Missed</span>
+                      <AlertCircle className="h-4 w-4 text-red-600" />
                     )}
+                    <span className="text-sm font-medium capitalize">{record.mealType}</span>
                   </div>
+                  <Badge variant="outline" className="text-xs">
+                    {record.date}
+                  </Badge>
                 </div>
-              ))}
-            </div>
-          )}
+                <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                  {record.checkedIn && record.time && (
+                    <>
+                      <Clock className="h-3 w-3" />
+                      <span>{record.time}</span>
+                    </>
+                  )}
+                  {!record.checkedIn && <span className="text-red-600">Missed</span>}
+                </div>
+              </div>
+            ))}
+          </div>
         </CardContent>
       </Card>
     </div>

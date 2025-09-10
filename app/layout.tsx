@@ -83,16 +83,20 @@ export default function RootLayout({
                     </div>
                   }
                 >
-                  {children}
+                  <div className="min-h-screen flex flex-col">
+                    <div className="flex-1 flex flex-col">
+                      {children}
+                    </div>
+                    <footer className="w-full text-center text-xs text-muted-foreground py-4 bg-background/80 border-t border-border/20">
+                      This is a demo project for educational purposes, not an official Poornima University system.
+                    </footer>
+                  </div>
                 </Suspense>
                 <Toaster position="top-right" closeButton richColors />
               </NotificationProvider>
             </AuthProvider>
           </ErrorBoundary>
         </ThemeProvider>
-        <footer className="w-full text-center text-xs text-muted-foreground py-4 opacity-80">
-          This is a demo project for educational purposes, not an official Poornima University system.
-        </footer>
       </body>
     </html>
   )

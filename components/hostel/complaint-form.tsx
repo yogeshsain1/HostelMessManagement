@@ -9,7 +9,33 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { CheckCircle, Loader2 } from "lucide-react"
+import { CheckCircle } from "lucide-react"
+import { FormError, SuccessMessage, InlineError } from "@/components/error-message"
+import { LoadingSpinner } from "@/components/loading-skeleton"
+import { useRetry } from "@/lib/retry"
+
+// Mock API call that can fail
+const submitComplaint = async (data: any) => {
+  await new Promise(resolve => setTimeout(resolve, 2000))
+  
+  // Simulate validation errors
+  if (!data.title.trim()) {
+    throw new Error("Title is required")
+  }
+  if (!data.description.trim()) {
+    throw new Error("Description is required")
+  }
+  if (data.description.length < 10) {
+    throw new Error("Description must be at least 10 characters long")
+  }
+  
+  // Simulate network failure
+  if (Math.random() > 0.8) {
+    throw new Error("Network error: Unable to submit complaint. Please try again.")
+  }
+  
+  return { success: true, id: Date.now().toString() }
+}
 
 export function ComplaintForm() {
   const [formData, setFormData] = useState({
@@ -20,12 +46,16 @@ export function ComplaintForm() {
   })
   const [submitted, setSubmitted] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [submitError, setSubmitError] = useState("")
+
+  const {
+    execute: handleSubmitComplaint,
+    isLoading: isSubmitting,
+    error: submitError
+  } = useRetry(submitComplaint, { maxAttempts: 2 })
 
   const validateField = (field: string, value: string) => {
     const errors = { ...fieldErrors }
-
+    
     switch (field) {
       case "title":
         if (!value.trim()) {
@@ -60,69 +90,37 @@ export function ComplaintForm() {
         }
         break
     }
-
+    
     setFieldErrors(errors)
     return Object.keys(errors).length === 0
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
+    
     // Validate all fields
-    const isValid = Object.entries(formData).every(([field, value]) =>
+    const isValid = Object.entries(formData).every(([field, value]) => 
       validateField(field, value)
     )
-
+    
     if (!isValid) return
-
+    
     try {
-      setIsSubmitting(true)
-      setSubmitError("")
-
-      // Map priority to API format
-      const priorityMap = {
-        low: "LOW",
-        medium: "MEDIUM",
-        high: "HIGH",
-        urgent: "CRITICAL"
-      }
-
-      const response = await fetch('/api/complaints', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          title: formData.title,
-          description: formData.description,
-          category: formData.category,
-          priority: priorityMap[formData.priority as keyof typeof priorityMap],
-        }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to submit complaint')
-      }
-
-      const result = await response.json()
+      await handleSubmitComplaint(formData)
       setSubmitted(true)
       setFormData({ title: "", description: "", category: "", priority: "" })
       setFieldErrors({})
-
+      
       // Reset success message after 5 seconds
       setTimeout(() => setSubmitted(false), 5000)
-    } catch (error: any) {
-      setSubmitError(error.message || 'Failed to submit complaint. Please try again.')
+    } catch (error) {
       console.error("Failed to submit complaint:", error)
-    } finally {
-      setIsSubmitting(false)
     }
   }
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
-
+    
     // Clear field error when user starts typing
     if (fieldErrors[field]) {
       const errors = { ...fieldErrors }
@@ -136,7 +134,7 @@ export function ComplaintForm() {
   }
 
   const isFormValid = () => {
-    return Object.values(formData).every(value => value.trim() !== "") &&
+    return Object.values(formData).every(value => value.trim() !== "") && 
            Object.keys(fieldErrors).length === 0
   }
 
@@ -147,21 +145,19 @@ export function ComplaintForm() {
       </CardHeader>
       <CardContent>
         {submitted ? (
-          <div className="text-center py-8">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <CheckCircle className="h-8 w-8 text-green-600" />
-            </div>
-            <h3 className="text-lg font-medium text-green-800 mb-2">Complaint Submitted Successfully!</h3>
-            <p className="text-sm text-green-600">Your complaint has been registered and will be reviewed shortly.</p>
-          </div>
+          <SuccessMessage 
+            message="Complaint submitted successfully! Your complaint has been registered and will be reviewed shortly."
+            onDismiss={() => setSubmitted(false)}
+          />
         ) : (
           <>
             {submitError && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
-                {submitError}
-              </div>
+              <FormError 
+                message={submitError.message}
+                onDismiss={() => window.location.reload()}
+              />
             )}
-
+            
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="title">Complaint Title *</Label>
@@ -174,16 +170,14 @@ export function ComplaintForm() {
                   className={fieldErrors.title ? "border-red-500" : ""}
                   disabled={isSubmitting}
                 />
-                {fieldErrors.title && (
-                  <p className="text-sm text-red-600">{fieldErrors.title}</p>
-                )}
+                {fieldErrors.title && <InlineError message={fieldErrors.title} />}
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Category *</Label>
-                  <Select
-                    value={formData.category}
+                  <Select 
+                    value={formData.category} 
                     onValueChange={(value) => handleInputChange("category", value)}
                     disabled={isSubmitting}
                   >
@@ -198,15 +192,13 @@ export function ComplaintForm() {
                       <SelectItem value="other">Other</SelectItem>
                     </SelectContent>
                   </Select>
-                  {fieldErrors.category && (
-                    <p className="text-sm text-red-600">{fieldErrors.category}</p>
-                  )}
+                  {fieldErrors.category && <InlineError message={fieldErrors.category} />}
                 </div>
 
                 <div className="space-y-2">
                   <Label>Priority *</Label>
-                  <Select
-                    value={formData.priority}
+                  <Select 
+                    value={formData.priority} 
                     onValueChange={(value) => handleInputChange("priority", value)}
                     disabled={isSubmitting}
                   >
@@ -220,9 +212,7 @@ export function ComplaintForm() {
                       <SelectItem value="urgent">Urgent</SelectItem>
                     </SelectContent>
                   </Select>
-                  {fieldErrors.priority && (
-                    <p className="text-sm text-red-600">{fieldErrors.priority}</p>
-                  )}
+                  {fieldErrors.priority && <InlineError message={fieldErrors.priority} />}
                 </div>
               </div>
 
@@ -238,9 +228,7 @@ export function ComplaintForm() {
                   rows={4}
                   disabled={isSubmitting}
                 />
-                {fieldErrors.description && (
-                  <p className="text-sm text-red-600">{fieldErrors.description}</p>
-                )}
+                {fieldErrors.description && <InlineError message={fieldErrors.description} />}
                 <p className="text-xs text-muted-foreground">
                   {formData.description.length}/500 characters
                 </p>
@@ -253,8 +241,8 @@ export function ComplaintForm() {
               >
                 {isSubmitting ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    Submitting...
+                    <LoadingSpinner size="sm" />
+                    <span className="ml-2">Submitting...</span>
                   </>
                 ) : (
                   "Submit Complaint"
