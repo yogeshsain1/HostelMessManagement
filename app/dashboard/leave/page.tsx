@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useAuth } from "@/lib/auth"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -16,82 +16,74 @@ import {
   User,
   MapPin,
   Clock as ClockIcon,
-  FileText
+  FileText,
+  Loader2
 } from "lucide-react"
 import Link from "next/link"
+import { toast } from "sonner"
+
+interface LeaveRequest {
+  id: string
+  type: string
+  reason: string
+  fromDate: string
+  toDate: string
+  duration: string
+  status: string
+  submittedDate: string
+  approvedBy?: string
+  approvedDate?: string
+  roomNumber?: string
+  destination: string
+  emergencyContact: string
+  rejectionReason?: string
+  userId: string
+  createdAt: string
+  updatedAt: string
+}
 
 export default function LeavePage() {
   const { user } = useAuth()
   const [filter, setFilter] = useState<"all" | "pending" | "approved" | "rejected">("all")
+  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [stats, setStats] = useState({
+    total: 0,
+    pending: 0,
+    approved: 0,
+    rejected: 0
+  })
+
+  useEffect(() => {
+    fetchLeaveRequests()
+  }, [])
+
+  const fetchLeaveRequests = async () => {
+    try {
+      setIsLoading(true)
+      const res = await fetch("/api/leave-requests")
+      if (!res.ok) throw new Error("Failed to fetch leave requests")
+      const data = await res.json()
+      setLeaveRequests(data.requests || [])
+      
+      // Calculate stats
+      const total = data.requests?.length || 0
+      const pending = data.requests?.filter((r: LeaveRequest) => r.status === "Pending").length || 0
+      const approved = data.requests?.filter((r: LeaveRequest) => r.status === "Approved").length || 0
+      const rejected = data.requests?.filter((r: LeaveRequest) => r.status === "Rejected").length || 0
+      
+      setStats({ total, pending, approved, rejected })
+    } catch (error) {
+      console.error("Error fetching leave requests:", error)
+      toast.error("Failed to load leave requests")
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   if (!user) {
     return null
   }
-
-  // Mock leave requests data
-const mockLeaveRequests = [
-  {
-      id: 1,
-      type: "Personal Leave",
-      reason: "Family function at home. Need to attend important family gathering.",
-      fromDate: "2024-01-20",
-      toDate: "2024-01-22",
-      duration: "3 days",
-      status: "Pending",
-      submittedDate: "2024-01-15",
-      approvedBy: null,
-      approvedDate: null,
-      roomNumber: "A-101",
-      destination: "Jaipur, Rajasthan",
-      emergencyContact: "+91-9876543210"
-    },
-    {
-      id: 2,
-      type: "Medical Leave",
-      reason: "Dental appointment and follow-up treatment required.",
-      fromDate: "2024-01-18",
-      toDate: "2024-01-18",
-      duration: "1 day",
-      status: "Approved",
-      submittedDate: "2024-01-12",
-      approvedBy: "Mr. Rajesh Sharma",
-      approvedDate: "2024-01-13",
-      roomNumber: "A-101",
-      destination: "Local Hospital, Jaipur",
-      emergencyContact: "+91-9876543210"
-    },
-    {
-      id: 3,
-      type: "Academic Leave",
-      reason: "Attending a technical workshop in Delhi for skill development.",
-      fromDate: "2024-01-25",
-      toDate: "2024-01-27",
-      duration: "3 days",
-      status: "Rejected",
-      submittedDate: "2024-01-10",
-      approvedBy: "Mr. Rajesh Sharma",
-      approvedDate: "2024-01-11",
-      roomNumber: "A-101",
-      destination: "Delhi, India",
-      emergencyContact: "+91-9876543210",
-      rejectionReason: "Workshop dates conflict with important academic schedule"
-    },
-    {
-      id: 4,
-      type: "Personal Leave",
-      reason: "Attending friend's wedding ceremony.",
-      fromDate: "2024-01-30",
-      toDate: "2024-02-01",
-      duration: "3 days",
-      status: "Pending",
-      submittedDate: "2024-01-16",
-      approvedBy: null,
-      approvedDate: null,
-      roomNumber: "A-101",
-      destination: "Mumbai, Maharashtra",
-      emergencyContact: "+91-9876543210"
-    }
-  ]
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
@@ -132,16 +124,19 @@ const mockLeaveRequests = [
     }
   }
 
-  const filteredRequests = mockLeaveRequests.filter(request => {
+  const filteredRequests = leaveRequests.filter(request => {
     if (filter === "all") return true
     return request.status.toLowerCase() === filter
   })
 
-  const stats = {
-    total: mockLeaveRequests.length,
-    pending: mockLeaveRequests.filter(r => r.status === "Pending").length,
-    approved: mockLeaveRequests.filter(r => r.status === "Approved").length,
-    rejected: mockLeaveRequests.filter(r => r.status === "Rejected").length
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      </DashboardLayout>
+    )
   }
 
   return (
@@ -291,11 +286,11 @@ const mockLeaveRequests = [
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                           <div className="flex items-center space-x-2">
                             <Calendar className="h-4 w-4 text-muted-foreground" />
-                            <span>From: {request.fromDate}</span>
+                            <span>From: {new Date(request.fromDate).toLocaleDateString()}</span>
                           </div>
                           <div className="flex items-center space-x-2">
                             <Calendar className="h-4 w-4 text-muted-foreground" />
-                            <span>To: {request.toDate}</span>
+                            <span>To: {new Date(request.toDate).toLocaleDateString()}</span>
                           </div>
                           <div className="flex items-center space-x-2">
                             <ClockIcon className="h-4 w-4 text-muted-foreground" />
@@ -318,13 +313,13 @@ const mockLeaveRequests = [
                         {request.status === "Approved" && request.approvedBy && (
                           <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
                             <p className="text-sm text-green-800">
-                              <strong>Approved by:</strong> {request.approvedBy} on {request.approvedDate}
+                              <strong>Approved by:</strong> {request.approvedBy} on {request.approvedDate ? new Date(request.approvedDate).toLocaleDateString() : 'N/A'}
                             </p>
                           </div>
                         )}
 
                         <div className="text-xs text-muted-foreground">
-                          Submitted on: {request.submittedDate}
+                          Submitted on: {new Date(request.createdAt).toLocaleDateString()}
                         </div>
                       </div>
 

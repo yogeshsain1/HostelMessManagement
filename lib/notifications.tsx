@@ -1,106 +1,133 @@
 "use client"
 
 import type React from "react"
-import { createContext, useContext, useState } from "react"
+import { createContext, useContext, useState, useEffect } from "react"
+import { useAuth } from "@/lib/auth"
+import { toast } from "sonner"
 
 export interface Notification {
   id: string
   title: string
   message: string
-  type: "info" | "success" | "warning" | "error"
-  category: "complaint" | "leave" | "mess" | "announcement" | "system"
   read: boolean
   createdAt: string
-  actionUrl?: string
+  userId: string
 }
 
 interface NotificationContextType {
   notifications: Notification[]
   unreadCount: number
-  addNotification: (notification: Omit<Notification, "id" | "createdAt" | "read">) => void
-  markAsRead: (id: string) => void
-  markAllAsRead: () => void
-  deleteNotification: (id: string) => void
-  clearAll: () => void
+  isLoading: boolean
+  markAsRead: (id: string) => Promise<void>
+  markAllAsRead: () => Promise<void>
+  deleteNotification: (id: string) => Promise<void>
+  clearAll: () => Promise<void>
+  refreshNotifications: () => Promise<void>
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined)
 
-// Mock notifications for demonstration
-const mockNotifications: Notification[] = [
-  {
-    id: "1",
-    title: "Complaint Update",
-    message: "Your AC repair complaint has been marked as in-progress",
-    type: "info",
-    category: "complaint",
-    read: false,
-    createdAt: new Date().toISOString(),
-    actionUrl: "/dashboard/complaints",
-  },
-  {
-    id: "2",
-    title: "Leave Request Approved",
-    message: "Your leave request for Jan 20-25 has been approved",
-    type: "success",
-    category: "leave",
-    read: false,
-    createdAt: new Date().toISOString(),
-    actionUrl: "/dashboard/leave",
-  },
-  {
-    id: "3",
-    title: "Menu Updated",
-    message: "Tomorrow's dinner menu has been updated with new items",
-    type: "info",
-    category: "mess",
-    read: true,
-    createdAt: new Date().toISOString(),
-    actionUrl: "/dashboard/mess",
-  },
-]
-
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
-  const [notifications, setNotifications] = useState<Notification[]>(mockNotifications)
+  const { user } = useAuth()
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [isLoading, setIsLoading] = useState(false)
 
   const unreadCount = notifications.filter((n) => !n.read).length
 
-  const addNotification = (notification: Omit<Notification, "id" | "createdAt" | "read">) => {
-    const newNotification: Notification = {
-      ...notification,
-      id: Date.now().toString(),
-      createdAt: new Date().toISOString(),
-      read: false,
+  const fetchNotifications = async () => {
+    if (!user?.id) return
+
+    try {
+      setIsLoading(true)
+      const res = await fetch(`/api/notifications?userId=${user.id}`)
+      if (!res.ok) throw new Error("Failed to fetch notifications")
+      const data = await res.json()
+      setNotifications(data)
+    } catch (error) {
+      console.error("Error fetching notifications:", error)
+      toast.error("Failed to load notifications")
+    } finally {
+      setIsLoading(false)
     }
-    setNotifications((prev) => [newNotification, ...prev])
   }
 
-  const markAsRead = (id: string) => {
-    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)))
+  const refreshNotifications = async () => {
+    await fetchNotifications()
   }
 
-  const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+  const markAsRead = async (id: string) => {
+    try {
+      const res = await fetch(`/api/notifications/${id}/read`, {
+        method: 'PUT'
+      })
+      if (!res.ok) throw new Error("Failed to mark as read")
+
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+      )
+    } catch (error) {
+      console.error("Error marking notification as read:", error)
+      toast.error("Failed to mark notification as read")
+    }
   }
 
-  const deleteNotification = (id: string) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id))
+  const markAllAsRead = async () => {
+    try {
+      // Mark all notifications as read in the UI first
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+
+      // In a real implementation, you might want to call an API endpoint
+      // that marks all notifications as read for the user
+      toast.success("All notifications marked as read")
+    } catch (error) {
+      console.error("Error marking all notifications as read:", error)
+      toast.error("Failed to mark all notifications as read")
+    }
   }
 
-  const clearAll = () => {
-    setNotifications([])
+  const deleteNotification = async (id: string) => {
+    try {
+      const res = await fetch(`/api/notifications/${id}`, {
+        method: 'DELETE'
+      })
+      if (!res.ok) throw new Error("Failed to delete notification")
+
+      setNotifications((prev) => prev.filter((n) => n.id !== id))
+      toast.success("Notification deleted")
+    } catch (error) {
+      console.error("Error deleting notification:", error)
+      toast.error("Failed to delete notification")
+    }
   }
+
+  const clearAll = async () => {
+    try {
+      // Delete all notifications from the UI
+      setNotifications([])
+      toast.success("All notifications cleared")
+    } catch (error) {
+      console.error("Error clearing notifications:", error)
+      toast.error("Failed to clear notifications")
+    }
+  }
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchNotifications()
+    }
+  }, [user?.id])
 
   return (
     <NotificationContext.Provider
       value={{
         notifications,
         unreadCount,
-        addNotification,
+        isLoading,
         markAsRead,
         markAllAsRead,
         deleteNotification,
         clearAll,
+        refreshNotifications,
       }}
     >
       {children}

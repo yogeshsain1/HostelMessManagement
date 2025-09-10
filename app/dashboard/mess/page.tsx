@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useAuth } from "@/lib/auth"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -16,85 +16,213 @@ import {
   Users,
   MessageSquare,
   ArrowLeft,
-  ArrowRight
+  ArrowRight,
+  Loader2
 } from "lucide-react"
 import Link from "next/link"
+import { toast } from "sonner"
+
+interface MessMenuItem {
+  id: string
+  date: string
+  mealType: string
+  items: string[]
+  createdAt: string
+  updatedAt: string
+}
+
+interface AttendanceRecord {
+  id: string
+  studentId: string
+  date: string
+  mealType: string
+  attended: boolean
+  student: {
+    id: string
+    fullName: string
+    email: string
+    role: string
+  }
+}
+
+interface WeeklyMenuData {
+  week: string
+  days: {
+    date: string
+    isToday: boolean
+    breakfast?: { time: string; items: string; rating: number }
+    lunch?: { time: string; items: string; rating: number }
+    snacks?: { time: string; items: string; rating: number }
+    dinner?: { time: string; items: string; rating: number }
+  }[]
+}
 
 export default function MessPage() {
   const { user } = useAuth()
   const [selectedWeek, setSelectedWeek] = useState(0)
+  const [menuData, setMenuData] = useState<MessMenuItem[]>([])
+  const [attendanceData, setAttendanceData] = useState<AttendanceRecord[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [stats, setStats] = useState({
+    todayMeals: 0,
+    avgRating: 0,
+    attendanceToday: 0,
+    attendanceMonth: 0
+  })
+
+  useEffect(() => {
+    fetchMessData()
+  }, [])
+
+  const fetchMessData = async () => {
+    try {
+      setIsLoading(true)
+      
+      // Fetch menu data
+      const menuRes = await fetch("/api/mess/menu")
+      if (!menuRes.ok) throw new Error("Failed to fetch menu")
+      const menuItems = await menuRes.json()
+      setMenuData(menuItems)
+
+      // Fetch attendance data for current user
+      const attendanceRes = await fetch(`/api/mess/attendance?studentId=${user?.id}`)
+      if (!attendanceRes.ok) throw new Error("Failed to fetch attendance")
+      const attendanceRecords = await attendanceRes.json()
+      setAttendanceData(attendanceRecords)
+
+      // Calculate stats
+      calculateStats(menuItems, attendanceRecords)
+    } catch (error) {
+      console.error("Error fetching mess data:", error)
+      toast.error("Failed to load mess data")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const calculateStats = (menuItems: MessMenuItem[], attendanceRecords: AttendanceRecord[]) => {
+    const today = new Date().toISOString().split('T')[0]
+    const currentMonth = new Date().getMonth()
+    const currentYear = new Date().getFullYear()
+
+    // Today's meals count
+    const todayMeals = menuItems.filter(item => 
+      item.date.startsWith(today)
+    ).length
+
+    // Average rating (mock for now, could be calculated from feedback)
+    const avgRating = 4.3
+
+    // Today's attendance percentage
+    const todayAttendance = attendanceRecords.filter(record => 
+      record.date.startsWith(today) && record.attended
+    ).length
+    const todayTotalPossible = attendanceRecords.filter(record => 
+      record.date.startsWith(today)
+    ).length
+    const attendanceToday = todayTotalPossible > 0 ? Math.round((todayAttendance / todayTotalPossible) * 100) : 0
+
+    // Monthly attendance percentage
+    const monthAttendance = attendanceRecords.filter(record => {
+      const recordDate = new Date(record.date)
+      return recordDate.getMonth() === currentMonth && 
+             recordDate.getFullYear() === currentYear && 
+             record.attended
+    }).length
+    const monthTotalPossible = attendanceRecords.filter(record => {
+      const recordDate = new Date(record.date)
+      return recordDate.getMonth() === currentMonth && recordDate.getFullYear() === currentYear
+    }).length
+    const attendanceMonth = monthTotalPossible > 0 ? Math.round((monthAttendance / monthTotalPossible) * 100) : 0
+
+    setStats({
+      todayMeals,
+      avgRating,
+      attendanceToday,
+      attendanceMonth
+    })
+  }
+
+  const transformMenuData = (menuItems: MessMenuItem[]): WeeklyMenuData[] => {
+    const weeks: { [key: string]: MessMenuItem[] } = {}
+    
+    menuItems.forEach(item => {
+      const date = new Date(item.date)
+      const weekStart = new Date(date)
+      weekStart.setDate(date.getDate() - date.getDay())
+      const weekKey = weekStart.toISOString().split('T')[0]
+      
+      if (!weeks[weekKey]) {
+        weeks[weekKey] = []
+      }
+      weeks[weekKey].push(item)
+    })
+
+    return Object.entries(weeks).map(([weekStart, items]) => {
+      const startDate = new Date(weekStart)
+      const endDate = new Date(startDate)
+      endDate.setDate(startDate.getDate() + 6)
+      
+      const weekLabel = `Week of ${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`
+      
+      const days = []
+      for (let i = 0; i < 7; i++) {
+        const currentDate = new Date(startDate)
+        currentDate.setDate(startDate.getDate() + i)
+        const dateStr = currentDate.toISOString().split('T')[0]
+        const isToday = dateStr === new Date().toISOString().split('T')[0]
+        
+        const dayItems = items.filter(item => item.date.startsWith(dateStr))
+        
+        const dayData = {
+          date: currentDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }),
+          isToday,
+          breakfast: dayItems.find(item => item.mealType.toLowerCase() === 'breakfast') ? {
+            time: "7:00 - 9:00 AM",
+            items: dayItems.find(item => item.mealType.toLowerCase() === 'breakfast')!.items.join(', '),
+            rating: 4.2
+          } : undefined,
+          lunch: dayItems.find(item => item.mealType.toLowerCase() === 'lunch') ? {
+            time: "12:00 - 2:00 PM", 
+            items: dayItems.find(item => item.mealType.toLowerCase() === 'lunch')!.items.join(', '),
+            rating: 4.5
+          } : undefined,
+          snacks: dayItems.find(item => item.mealType.toLowerCase() === 'snacks') ? {
+            time: "4:00 - 6:00 PM",
+            items: dayItems.find(item => item.mealType.toLowerCase() === 'snacks')!.items.join(', '),
+            rating: 4.0
+          } : undefined,
+          dinner: dayItems.find(item => item.mealType.toLowerCase() === 'dinner') ? {
+            time: "7:00 - 9:00 PM",
+            items: dayItems.find(item => item.mealType.toLowerCase() === 'dinner')!.items.join(', '),
+            rating: 4.3
+          } : undefined
+        }
+        
+        days.push(dayData)
+      }
+      
+      return { week: weekLabel, days }
+    })
+  }
 
   if (!user) {
     return null
   }
 
-  // Mock weekly menu data
-  const weeklyMenuData = [
-    {
-      week: "Week 1 (Jan 15-21)",
-      days: [
-        {
-          date: "Monday, Jan 15",
-          isToday: true,
-          breakfast: { time: "7:00 - 9:00 AM", items: "Idli, Sambar, Coconut Chutney", rating: 4.2 },
-          lunch: { time: "12:00 - 2:00 PM", items: "Rajasthani Dal Baati, Rice, Vegetable", rating: 4.5 },
-          snacks: { time: "4:00 - 6:00 PM", items: "Samosa, Tea", rating: 4.0 },
-          dinner: { time: "7:00 - 9:00 PM", items: "Roti, Paneer Curry, Rice", rating: 4.3 }
-        },
-        {
-          date: "Tuesday, Jan 16",
-          isToday: false,
-          breakfast: { time: "7:00 - 9:00 AM", items: "Poha, Jalebi, Tea", rating: 4.1 },
-          lunch: { time: "12:00 - 2:00 PM", items: "Rajma Chawal, Salad, Raita", rating: 4.4 },
-          snacks: { time: "4:00 - 6:00 PM", items: "Pakora, Coffee", rating: 3.9 },
-          dinner: { time: "7:00 - 9:00 PM", items: "Chicken Curry, Roti, Dal", rating: 4.6 }
-        },
-        {
-          date: "Wednesday, Jan 17",
-          isToday: false,
-          breakfast: { time: "7:00 - 9:00 AM", items: "Bread, Butter, Jam, Milk", rating: 3.8 },
-          lunch: { time: "12:00 - 2:00 PM", items: "Mixed Vegetable, Roti, Dal", rating: 4.2 },
-          snacks: { time: "4:00 - 6:00 PM", items: "Biscuits, Tea", rating: 3.7 },
-          dinner: { time: "7:00 - 9:00 PM", items: "Egg Curry, Rice, Vegetable", rating: 4.4 }
-        },
-        {
-          date: "Thursday, Jan 18",
-          isToday: false,
-          breakfast: { time: "7:00 - 9:00 AM", items: "Upma, Chutney, Tea", rating: 4.0 },
-          lunch: { time: "12:00 - 2:00 PM", items: "Kadhi Pakora, Rice, Salad", rating: 4.3 },
-          snacks: { time: "4:00 - 6:00 PM", items: "Fruits, Juice", rating: 4.5 },
-          dinner: { time: "7:00 - 9:00 PM", items: "Mutton Curry, Roti, Dal", rating: 4.7 }
-        },
-        {
-          date: "Friday, Jan 19",
-          isToday: false,
-          breakfast: { time: "7:00 - 9:00 AM", items: "Dosa, Sambar, Chutney", rating: 4.4 },
-          lunch: { time: "12:00 - 2:00 PM", items: "Chole Bhature, Salad", rating: 4.6 },
-          snacks: { time: "4:00 - 6:00 PM", items: "Cake, Coffee", rating: 4.2 },
-          dinner: { time: "7:00 - 9:00 PM", items: "Fish Curry, Rice, Vegetable", rating: 4.5 }
-        },
-        {
-          date: "Saturday, Jan 20",
-          isToday: false,
-          breakfast: { time: "7:00 - 9:00 AM", items: "Puri, Aloo Sabzi, Tea", rating: 4.3 },
-          lunch: { time: "12:00 - 2:00 PM", items: "Biryani, Raita, Salad", rating: 4.8 },
-          snacks: { time: "4:00 - 6:00 PM", items: "Ice Cream, Juice", rating: 4.6 },
-          dinner: { time: "7:00 - 9:00 PM", items: "Paneer Tikka, Roti, Dal", rating: 4.4 }
-        },
-        {
-          date: "Sunday, Jan 21",
-          isToday: false,
-          breakfast: { time: "7:00 - 9:00 AM", items: "Sandwich, Milk, Fruits", rating: 4.1 },
-          lunch: { time: "12:00 - 2:00 PM", items: "Thali (Mixed Items)", rating: 4.7 },
-          snacks: { time: "4:00 - 6:00 PM", items: "Chips, Soft Drink", rating: 4.0 },
-          dinner: { time: "7:00 - 9:00 PM", items: "Chicken Biryani, Raita", rating: 4.8 }
-        }
-      ]
-    }
-  ]
-
-  const currentWeek = weeklyMenuData[selectedWeek]
+  const weeklyMenuData = transformMenuData(menuData)
+  const currentWeek = weeklyMenuData[selectedWeek] || { week: "No menu available", days: [] }
   const today = currentWeek.days.find(day => day.isToday)
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      </DashboardLayout>
+    )
+  }
 
   return (
     <DashboardLayout>
@@ -129,7 +257,7 @@ export default function MessPage() {
                 <UtensilsCrossed className="h-5 w-5 text-blue-600" />
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Today's Meals</p>
-                  <p className="text-xl font-bold">4</p>
+                  <p className="text-xl font-bold">{stats.todayMeals}</p>
                 </div>
               </div>
             </CardContent>
@@ -141,7 +269,7 @@ export default function MessPage() {
                 <TrendingUp className="h-5 w-5 text-green-600" />
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Avg Rating</p>
-                  <p className="text-xl font-bold">4.3</p>
+                  <p className="text-xl font-bold">{stats.avgRating}</p>
                 </div>
               </div>
             </CardContent>
@@ -153,7 +281,7 @@ export default function MessPage() {
                 <Users className="h-5 w-5 text-purple-600" />
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Attendance</p>
-                  <p className="text-xl font-bold">85%</p>
+                  <p className="text-xl font-bold">{stats.attendanceToday}%</p>
                 </div>
               </div>
             </CardContent>
@@ -165,7 +293,7 @@ export default function MessPage() {
                 <Calendar className="h-5 w-5 text-orange-600" />
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">This Month</p>
-                  <p className="text-xl font-bold">88%</p>
+                  <p className="text-xl font-bold">{stats.attendanceMonth}%</p>
                 </div>
               </div>
             </CardContent>
@@ -233,25 +361,29 @@ export default function MessPage() {
                   </div>
 
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                    {Object.entries(day).filter(([key]) => ['breakfast', 'lunch', 'snacks', 'dinner'].includes(key)).map(([mealType, mealData]) => (
-                      <div key={mealType} className="p-3 rounded-lg bg-card dark:bg-card/80 border border-border hover:border-border/60 transition-colors">
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-medium capitalize text-sm text-foreground">{mealType}</h4>
-                          <div className="flex items-center space-x-1">
-                            <Star className="h-3 w-3 text-yellow-500 dark:text-yellow-400 fill-current" />
-                            <span className="text-xs text-foreground">{mealData.rating}</span>
+                    {Object.entries(day).filter(([key]) => ['breakfast', 'lunch', 'snacks', 'dinner'].includes(key)).map(([mealType, mealData]) => {
+                      if (!mealData || typeof mealData !== 'object') return null
+                      
+                      return (
+                        <div key={mealType} className="p-3 rounded-lg bg-card dark:bg-card/80 border border-border hover:border-border/60 transition-colors">
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="font-medium capitalize text-sm text-foreground">{mealType}</h4>
+                            <div className="flex items-center space-x-1">
+                              <Star className="h-3 w-3 text-yellow-500 dark:text-yellow-400 fill-current" />
+                              <span className="text-xs text-foreground">{(mealData as any).rating}</span>
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <div className="flex items-center space-x-2 text-xs text-muted-foreground">
+                              <Clock className="h-3 w-3" />
+                              <span>{(mealData as any).time}</span>
+                            </div>
+                            <p className="text-sm text-foreground">{(mealData as any).items}</p>
                           </div>
                         </div>
-                        
-                        <div className="space-y-2">
-                          <div className="flex items-center space-x-2 text-xs text-muted-foreground">
-                            <Clock className="h-3 w-3" />
-                            <span>{mealData.time}</span>
-                          </div>
-                          <p className="text-sm text-foreground">{mealData.items}</p>
-                        </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 </div>
               ))}
@@ -260,33 +392,37 @@ export default function MessPage() {
         </Card>
 
         {/* Today's Highlights */}
-        {today && (
+        {today && (today.lunch || today.snacks) && (
           <Card className="bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-950/50 dark:to-blue-950/50 border-green-200 dark:border-green-800">
             <CardHeader>
               <CardTitle className="text-xl text-green-900 dark:text-green-100">Today's Highlights</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid gap-4 md:grid-cols-2">
-                <div className="p-4 bg-white dark:bg-card rounded-lg border border-border">
-                  <h4 className="font-semibold mb-2 text-foreground">Best Rated Meal</h4>
-              <div className="flex items-center space-x-2">
-                    <Star className="h-5 w-5 text-yellow-500 dark:text-yellow-400 fill-current" />
-                    <span className="font-medium text-foreground">{today.lunch.items}</span>
-                    <Badge className="bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 border-green-200 dark:border-green-700">
-                      {today.lunch.rating} ★
-                    </Badge>
-              </div>
-            </div>
-
-                <div className="p-4 bg-white dark:bg-card rounded-lg border border-border">
-                  <h4 className="font-semibold mb-2 text-foreground">Next Meal</h4>
-                  <div className="flex items-center space-x-2">
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium text-foreground">Snacks</span>
-                    <span className="text-sm text-muted-foreground">({today.snacks.time})</span>
+                {today.lunch && (
+                  <div className="p-4 bg-white dark:bg-card rounded-lg border border-border">
+                    <h4 className="font-semibold mb-2 text-foreground">Best Rated Meal</h4>
+                    <div className="flex items-center space-x-2">
+                      <Star className="h-5 w-5 text-yellow-500 dark:text-yellow-400 fill-current" />
+                      <span className="font-medium text-foreground">{today.lunch.items}</span>
+                      <Badge className="bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 border-green-200 dark:border-green-700">
+                        {today.lunch.rating} ★
+                      </Badge>
+                    </div>
                   </div>
-                </div>
-            </div>
+                )}
+
+                {today.snacks && (
+                  <div className="p-4 bg-white dark:bg-card rounded-lg border border-border">
+                    <h4 className="font-semibold mb-2 text-foreground">Next Meal</h4>
+                    <div className="flex items-center space-x-2">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium text-foreground">Snacks</span>
+                      <span className="text-sm text-muted-foreground">({today.snacks.time})</span>
+                    </div>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
         )}

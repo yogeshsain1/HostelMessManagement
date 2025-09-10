@@ -90,6 +90,9 @@ export default function RootLayout({
             </AuthProvider>
           </ErrorBoundary>
         </ThemeProvider>
+        <footer className="w-full text-center text-xs text-muted-foreground py-4 opacity-80">
+          This is a demo project for educational purposes, not an official Poornima University system.
+        </footer>
       </body>
     </html>
   )

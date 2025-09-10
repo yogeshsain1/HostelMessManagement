@@ -18,9 +18,14 @@ export async function GET(request: NextRequest) {
     const read = searchParams.get('read')
 
     // In production, extract userId from JWT token
-    const finalUserId = userId || 'demo-user-id'
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'User ID is required' },
+        { status: 400 }
+      )
+    }
 
-    const where: any = { userId: finalUserId }
+    const where: any = { userId }
     if (read !== null) where.read = read === 'true'
 
     const notifications = await prisma.notification.findMany({

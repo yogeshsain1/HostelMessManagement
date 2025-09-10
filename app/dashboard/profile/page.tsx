@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useRef, useState, useEffect } from "react"
 import { useAuth } from "@/lib/auth"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -21,80 +21,141 @@ import {
   X,
   CheckCircle,
   ImagePlus,
-  Lock
+  Lock,
+  Loader2
 } from "lucide-react"
 import { toast } from "sonner"
+
+interface UserProfile {
+  id: string
+  email: string
+  fullName: string
+  phone?: string
+  role: string
+  hostel?: string
+  room?: string
+  addressLine1?: string
+  addressLine2?: string
+  city?: string
+  state?: string
+  postalCode?: string
+  emergencyContactName?: string
+  emergencyContactPhone?: string
+  course?: string
+  year?: string
+  profileImageUrl?: string
+  twoFactorEnabled?: boolean
+  createdAt: string
+  updatedAt: string
+}
 
 export default function ProfilePage() {
   const { user } = useAuth()
   const [isEditing, setIsEditing] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [profile, setProfile] = useState<UserProfile | null>(null)
   const [editedUser, setEditedUser] = useState({
-    email: user?.email || "",
-    phone: user?.phone || "",
-    addressLine1: user?.addressLine1 || "",
-    addressLine2: user?.addressLine2 || "",
-    city: user?.city || "",
-    state: user?.state || "",
-    postalCode: user?.postalCode || "",
-    emergencyContactName: user?.emergencyContactName || "",
-    emergencyContactPhone: user?.emergencyContactPhone || "",
-    course: user?.course || "",
-    year: user?.year || "",
-    profileImageUrl: user?.profileImageUrl || "",
+    email: "",
+    phone: "",
+    addressLine1: "",
+    addressLine2: "",
+    city: "",
+    state: "",
+    postalCode: "",
+    emergencyContactName: "",
+    emergencyContactPhone: "",
+    course: "",
+    year: "",
+    profileImageUrl: "",
   })
   const [pwd, setPwd] = useState({ currentPassword: "", newPassword: "", confirm: "" })
-  const [twoFAEnabled, setTwoFAEnabled] = useState<boolean>(user?.twoFactorEnabled ?? false)
+  const [twoFAEnabled, setTwoFAEnabled] = useState<boolean>(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
-  if (!user) {
-    return null
+  // Fetch user profile on component mount
+  useEffect(() => {
+    fetchProfile()
+  }, [])
+
+  const fetchProfile = async () => {
+    try {
+      const res = await fetch("/api/users/profile")
+      if (!res.ok) throw new Error("Failed to fetch profile")
+      const data = await res.json()
+      setProfile(data.user)
+      setTwoFAEnabled(data.user.twoFactorEnabled || false)
+    } catch (error) {
+      console.error("Error fetching profile:", error)
+      toast.error("Failed to load profile")
+    }
+  }
+
+  if (!user || !profile) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      </DashboardLayout>
+    )
   }
 
   const handleEdit = () => {
     setIsEditing(true)
     setEditedUser({
-      email: user.email,
-      phone: user.phone || "",
-      addressLine1: user.addressLine1 || "",
-      addressLine2: user.addressLine2 || "",
-      city: user.city || "",
-      state: user.state || "",
-      postalCode: user.postalCode || "",
-      emergencyContactName: user.emergencyContactName || "",
-      emergencyContactPhone: user.emergencyContactPhone || "",
-      course: user.course || "",
-      year: user.year || "",
-      profileImageUrl: user.profileImageUrl || "",
+      email: profile.email,
+      phone: profile.phone || "",
+      addressLine1: profile.addressLine1 || "",
+      addressLine2: profile.addressLine2 || "",
+      city: profile.city || "",
+      state: profile.state || "",
+      postalCode: profile.postalCode || "",
+      emergencyContactName: profile.emergencyContactName || "",
+      emergencyContactPhone: profile.emergencyContactPhone || "",
+      course: profile.course || "",
+      year: profile.year || "",
+      profileImageUrl: profile.profileImageUrl || "",
     })
   }
 
   const handleCancel = () => {
     setIsEditing(false)
     setEditedUser({
-      email: user.email,
-      phone: user.phone || "",
-      addressLine1: user.addressLine1 || "",
-      addressLine2: user.addressLine2 || "",
-      city: user.city || "",
-      state: user.state || "",
-      postalCode: user.postalCode || "",
-      emergencyContactName: user.emergencyContactName || "",
-      emergencyContactPhone: user.emergencyContactPhone || "",
-      course: user.course || "",
-      year: user.year || "",
-      profileImageUrl: user.profileImageUrl || "",
+      email: profile.email,
+      phone: profile.phone || "",
+      addressLine1: profile.addressLine1 || "",
+      addressLine2: profile.addressLine2 || "",
+      city: profile.city || "",
+      state: profile.state || "",
+      postalCode: profile.postalCode || "",
+      emergencyContactName: profile.emergencyContactName || "",
+      emergencyContactPhone: profile.emergencyContactPhone || "",
+      course: profile.course || "",
+      year: profile.year || "",
+      profileImageUrl: profile.profileImageUrl || "",
     })
   }
 
   const handleSave = async () => {
+    setIsLoading(true)
     try {
-      const res = await fetch("/api/users", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(editedUser) })
+      const res = await fetch("/api/users", { 
+        method: "PATCH", 
+        headers: { "content-type": "application/json" }, 
+        body: JSON.stringify({ ...editedUser, userId: profile.id }) 
+      })
       const json = await res.json()
-      if (!res.ok || json?.success === false) throw new Error("Failed to update")
+      if (!res.ok) throw new Error(json.error || "Failed to update")
+      
       toast.success("Profile updated successfully!")
       setIsEditing(false)
-    } catch (e) {
-      toast.error("Could not update profile")
+      // Refresh profile data
+      await fetchProfile()
+    } catch (error: any) {
+      console.error("Update error:", error)
+      toast.error(error.message || "Could not update profile")
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -121,14 +182,27 @@ export default function ProfilePage() {
       toast.error("Passwords do not match")
       return
     }
+    setIsLoading(true)
     try {
-      const res = await fetch("/api/users?action=change-password", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ currentPassword: pwd.currentPassword, newPassword: pwd.newPassword }) })
+      const res = await fetch("/api/users?action=change-password", { 
+        method: "POST", 
+        headers: { "content-type": "application/json" }, 
+        body: JSON.stringify({ 
+          currentPassword: pwd.currentPassword, 
+          newPassword: pwd.newPassword,
+          userId: profile.id 
+        }) 
+      })
       const json = await res.json()
-      if (!res.ok || json?.success === false) throw new Error("Change failed")
-      toast.success("Password changed")
+      if (!res.ok) throw new Error(json.error || "Change failed")
+      
+      toast.success("Password changed successfully!")
       setPwd({ currentPassword: "", newPassword: "", confirm: "" })
-    } catch (_) {
-      toast.error("Could not change password")
+    } catch (error: any) {
+      console.error("Password change error:", error)
+      toast.error(error.message || "Could not change password")
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -198,16 +272,16 @@ export default function ProfilePage() {
               {/* Avatar Section */}
               <div className="flex flex-col items-center space-y-4">
                 <Avatar className="h-24 w-24">
-                  <AvatarImage src={editedUser.profileImageUrl || "/placeholder-user.jpg"} alt={user.fullName} />
+                  <AvatarImage src={editedUser.profileImageUrl || "/placeholder-user.jpg"} alt={profile.fullName} />
                   <AvatarFallback className="text-2xl">
-                    {user.fullName.split(" ").map(n => n[0]).join("")}
+                    {profile.fullName.split(" ").map(n => n[0]).join("")}
                   </AvatarFallback>
                 </Avatar>
                 <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
                 <div className="text-center">
-                  <h2 className="text-xl font-semibold">{user.fullName}</h2>
-                  <Badge className={getRoleColor(user.role)}>
-                    {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                  <h2 className="text-xl font-semibold">{profile.fullName}</h2>
+                  <Badge className={getRoleColor(profile.role)}>
+                    {profile.role.charAt(0).toUpperCase() + profile.role.slice(1)}
                   </Badge>
                   {isEditing && (
                     <div className="mt-2">
@@ -226,7 +300,7 @@ export default function ProfilePage() {
                     <User className="h-4 w-4" />
                     <span>Full Name</span>
                   </Label>
-                  <p className="font-medium">{user.fullName}</p>
+                  <p className="font-medium">{profile.fullName}</p>
                 </div>
 
                 <div className="space-y-3">
@@ -234,7 +308,7 @@ export default function ProfilePage() {
                     <Shield className="h-4 w-4" />
                     <span>Student ID</span>
                   </Label>
-                  <p className="font-medium">{user.id}</p>
+                  <p className="font-medium">{profile.id}</p>
                 </div>
 
                 <div className="space-y-3">
@@ -249,7 +323,7 @@ export default function ProfilePage() {
                       placeholder="Enter email"
                     />
                   ) : (
-                    <p className="font-medium">{user.email}</p>
+                    <p className="font-medium">{profile.email}</p>
                   )}
                 </div>
 
@@ -265,7 +339,7 @@ export default function ProfilePage() {
                       placeholder="Enter phone number"
                     />
                   ) : (
-                    <p className="font-medium">{user.phone || "Not provided"}</p>
+                    <p className="font-medium">{profile.phone || "Not provided"}</p>
                   )}
                 </div>
 
@@ -285,7 +359,7 @@ export default function ProfilePage() {
                       </div>
                     </div>
                   ) : (
-                    <p className="font-medium">{[user.addressLine1, user.addressLine2, user.city, user.state, user.postalCode].filter(Boolean).join(', ') || 'Not provided'}</p>
+                    <p className="font-medium">{[profile.addressLine1, profile.addressLine2, profile.city, profile.state, profile.postalCode].filter(Boolean).join(', ') || 'Not provided'}</p>
                   )}
                 </div>
 
@@ -294,17 +368,17 @@ export default function ProfilePage() {
                     <Calendar className="h-4 w-4" />
                     <span>Room Number</span>
                   </Label>
-                  <p className="font-medium">{user.roomNumber || "Not assigned"}</p>
+                  <p className="font-medium">{profile.room || "Not assigned"}</p>
                 </div>
 
-                {user.role === 'student' && (
+                {profile.role === 'student' && (
                   <>
                     <div className="space-y-3">
                       <Label className="text-sm font-medium text-muted-foreground">Course</Label>
                       {isEditing ? (
                         <Input value={editedUser.course} onChange={(e) => setEditedUser(prev => ({ ...prev, course: e.target.value }))} placeholder="e.g., B.Tech CSE" />
                       ) : (
-                        <p className="font-medium">{user.course || 'Not provided'}</p>
+                        <p className="font-medium">{profile.course || 'Not provided'}</p>
                       )}
                     </div>
                     <div className="space-y-3">
@@ -312,7 +386,7 @@ export default function ProfilePage() {
                       {isEditing ? (
                         <Input value={editedUser.year} onChange={(e) => setEditedUser(prev => ({ ...prev, year: e.target.value }))} placeholder="e.g., 3rd Year" />
                       ) : (
-                        <p className="font-medium">{user.year || 'Not provided'}</p>
+                        <p className="font-medium">{profile.year || 'Not provided'}</p>
                       )}
                     </div>
                   </>
@@ -335,12 +409,12 @@ export default function ProfilePage() {
             {/* Edit Actions */}
             {isEditing && (
               <div className="flex justify-end space-x-3 mt-6 pt-6 border-t">
-                <Button variant="outline" onClick={handleCancel}>
+                <Button variant="outline" onClick={handleCancel} disabled={isLoading}>
                   <X className="h-4 w-4 mr-2" />
                   Cancel
                 </Button>
-                <Button onClick={handleSave}>
-                  <Save className="h-4 w-4 mr-2" />
+                <Button onClick={handleSave} disabled={isLoading}>
+                  {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
                   Save Changes
                 </Button>
               </div>
@@ -396,7 +470,9 @@ export default function ProfilePage() {
                   <Input type="password" placeholder="Current" className="w-28" value={pwd.currentPassword} onChange={(e) => setPwd(prev => ({ ...prev, currentPassword: e.target.value }))} />
                   <Input type="password" placeholder="New" className="w-28" value={pwd.newPassword} onChange={(e) => setPwd(prev => ({ ...prev, newPassword: e.target.value }))} />
                   <Input type="password" placeholder="Confirm" className="w-28" value={pwd.confirm} onChange={(e) => setPwd(prev => ({ ...prev, confirm: e.target.value }))} />
-                  <Button variant="outline" size="sm" onClick={handleChangePassword}>Update</Button>
+                  <Button variant="outline" size="sm" onClick={handleChangePassword} disabled={isLoading}>
+                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Update"}
+                  </Button>
                 </div>
               </div>
             </div>
@@ -412,15 +488,11 @@ export default function ProfilePage() {
             <div className="space-y-3">
               <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/50">
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-sm">Profile updated - 2 days ago</span>
+                <span className="text-sm">Profile updated - {new Date(profile.updatedAt).toLocaleDateString()}</span>
               </div>
               <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/50">
                 <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                <span className="text-sm">Password changed - 30 days ago</span>
-              </div>
-              <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/50">
-                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                <span className="text-sm">Account created - 3 months ago</span>
+                <span className="text-sm">Account created - {new Date(profile.createdAt).toLocaleDateString()}</span>
               </div>
             </div>
           </CardContent>

@@ -29,6 +29,12 @@ enum LeaveStatus {
   REJECTED
 }
 
+enum MealType {
+  BREAKFAST
+  LUNCH
+  DINNER
+}
+
 model User {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
   email       String   @unique
@@ -45,6 +51,7 @@ model User {
   leaveRequests   LeaveRequest[]
   attendances     Attendance[]
   notifications   Notification[]
+  feedback        Feedback[]
   assignedComplaints Complaint[] @relation("AssignedComplaints")
   approvedLeaves     LeaveRequest[] @relation("ApprovedLeaves")
 
@@ -119,4 +126,16 @@ model Notification {
   createdAt   DateTime @default(now())
 
   @@map("notifications")
+}
+
+model Feedback {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  rating      Int
+  mealType    MealType
+  comment     String?
+  studentId   String    @db.ObjectId
+  student     User      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+
+  @@map("feedback")
 }

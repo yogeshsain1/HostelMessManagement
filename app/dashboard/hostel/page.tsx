@@ -1,17 +1,18 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { useAuth } from "@/lib/auth"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { 
-  Home, 
-  Users, 
-  Phone, 
-  Mail, 
-  MapPin, 
+import {
+  Home,
+  Users,
+  Phone,
+  Mail,
+  MapPin,
   Building,
   Shield,
   Clock,
@@ -22,49 +23,117 @@ import {
   MessageSquare,
   Calendar,
   UtensilsCrossed,
-  User
+  User,
+  Loader2
 } from "lucide-react"
 import Link from "next/link"
+import { toast } from "sonner"
+
+interface HostelData {
+  id: string
+  name: string
+  address: string
+  totalRooms: number
+  occupiedRooms: number
+  userRoom?: string
+  warden: {
+    id: string
+    name: string
+    phone: string
+    email: string
+  }
+  facilities: Array<{
+    name: string
+    status: string
+  }>
+  rules: string[]
+  emergencyContacts: Array<{
+    name: string
+    phone: string
+  }>
+}
 
 export default function HostelPage() {
   const { user } = useAuth()
+  const [hostelData, setHostelData] = useState<HostelData | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchHostelData()
+    }
+  }, [user])
+
+  const fetchHostelData = async () => {
+    try {
+      setIsLoading(true)
+      const res = await fetch(`/api/hostels?userId=${user?.id}`)
+      if (!res.ok) throw new Error("Failed to fetch hostel data")
+      const data = await res.json()
+      setHostelData(data)
+    } catch (error) {
+      console.error("Error fetching hostel data:", error)
+      toast.error("Failed to load hostel information")
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   if (!user) {
     return null
   }
 
-  // Mock hostel data
-  const hostelData = {
-    name: "Block A - Boys Hostel",
-    address: "Poornima University Campus, Jaipur, Rajasthan",
-    totalRooms: 120,
-    occupiedRooms: 98,
-    warden: {
-      name: "Mr. Rajesh Sharma",
-      phone: "+91-9876543211",
-      email: "warden1@poornima.edu.in",
-      image: "/placeholder-user.jpg"
-    },
-    facilities: [
-      { name: "WiFi", status: "Available", icon: Wifi, color: "text-green-600" },
-      { name: "Water Supply", status: "24/7", icon: Droplets, color: "text-blue-600" },
-      { name: "Power Backup", status: "Available", icon: Zap, color: "text-yellow-600" }
-    ],
-    rules: [
-      "Check-in time: 8:00 PM",
-      "Check-out time: 6:00 AM",
-      "No smoking or alcohol",
-      "Maintain cleanliness",
-      "Follow hostel timings"
-    ],
-    emergencyContacts: [
-      { name: "Hostel Office", phone: "+91-141-1234567" },
-      { name: "Security", phone: "+91-141-1234568" },
-      { name: "Medical", phone: "+91-141-1234569" }
-    ]
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      </DashboardLayout>
+    )
+  }
+
+  if (!hostelData) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <Building className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            <h3 className="text-lg font-medium mb-2">Hostel information not available</h3>
+            <p className="text-muted-foreground">Unable to load your hostel details.</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    )
   }
 
   const occupancyRate = Math.round((hostelData.occupiedRooms / hostelData.totalRooms) * 100)
+
+  const getFacilityIcon = (name: string) => {
+    switch (name.toLowerCase()) {
+      case 'wifi':
+        return Wifi
+      case 'water supply':
+        return Droplets
+      case 'power backup':
+        return Zap
+      default:
+        return Star
+    }
+  }
+
+  const getFacilityColor = (name: string) => {
+    switch (name.toLowerCase()) {
+      case 'wifi':
+        return 'text-green-600'
+      case 'water supply':
+        return 'text-blue-600'
+      case 'power backup':
+        return 'text-yellow-600'
+      default:
+        return 'text-gray-600'
+    }
+  }
 
   return (
     <DashboardLayout>
@@ -93,7 +162,7 @@ export default function HostelPage() {
               </div>
               <div className="text-right">
                 <Badge className="bg-blue-100 text-blue-800 text-sm px-3 py-1">
-                  Room {user.roomNumber}
+                  Room {hostelData.userRoom || user.roomNumber || 'N/A'}
                 </Badge>
               </div>
             </div>
@@ -158,7 +227,6 @@ export default function HostelPage() {
             <CardContent>
               <div className="flex items-start space-x-4">
                 <Avatar className="h-16 w-16">
-                  <AvatarImage src={hostelData.warden.image} alt={hostelData.warden.name} />
                   <AvatarFallback className="text-lg">
                     {hostelData.warden.name.split(" ").map(n => n[0]).join("")}
                   </AvatarFallback>
@@ -198,17 +266,22 @@ export default function HostelPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {hostelData.facilities.map((facility, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 rounded-lg border">
-                    <div className="flex items-center space-x-3">
-                      <facility.icon className={`h-5 w-5 ${facility.color}`} />
-                      <span className="font-medium">{facility.name}</span>
+                {hostelData.facilities.map((facility, index) => {
+                  const FacilityIcon = getFacilityIcon(facility.name)
+                  const colorClass = getFacilityColor(facility.name)
+                  
+                  return (
+                    <div key={index} className="flex items-center justify-between p-3 rounded-lg border">
+                      <div className="flex items-center space-x-3">
+                        <FacilityIcon className={`h-5 w-5 ${colorClass}`} />
+                        <span className="font-medium">{facility.name}</span>
+                      </div>
+                      <Badge variant="outline" className="text-green-700 border-green-200">
+                        {facility.status}
+                      </Badge>
                     </div>
-                    <Badge variant="outline" className="text-green-700 border-green-200">
-                      {facility.status}
-                    </Badge>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </CardContent>
           </Card>
