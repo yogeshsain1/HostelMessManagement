@@ -10,7 +10,6 @@ import { useAuth } from "@/lib/auth"
 import { useRouter } from "next/navigation"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { EnhancedButton } from "@/components/ui/enhanced-button"
-import { Button } from "@/components/ui/button"
 import { Eye, EyeOff, Mail, Lock } from "lucide-react"
 
 export function LoginForm() {
@@ -41,30 +40,44 @@ export function LoginForm() {
     setLoading(true)
     setError("")
 
+    console.log("=== LOGIN FORM SUBMISSION ===")
+    console.log("Email entered:", email)
+    console.log("Email length:", email.length)
+    console.log("Email trimmed:", email.trim())
+    console.log("Password entered:", password)
+    console.log("Password length:", password.length)
+
     try {
-      const success = await login(email, password)
+      const success = await login(email.trim(), password.trim())
       if (success) {
+        console.log('✓ Login successful, preparing redirect...')
         try {
           if (rememberEmail) {
             localStorage.setItem("demo-remember-email", "1")
-            localStorage.setItem("demo-email", email)
+            localStorage.setItem("demo-email", email.trim())
           } else {
             localStorage.removeItem("demo-remember-email")
             localStorage.removeItem("demo-email")
           }
         } catch (_) {}
-        router.push("/dashboard")
+        
+        // Small delay to ensure cookie and localStorage are set
+        setTimeout(() => {
+          console.log('✓ Redirecting to dashboard...')
+          router.push("/dashboard")
+          // Force reload to ensure middleware picks up the cookie
+          setTimeout(() => window.location.href = '/dashboard', 100)
+        }, 100)
       } else {
         setError("Invalid email or password")
+        setLoading(false)
       }
     } catch (err) {
+      console.error("Login error:", err)
       setError("An error occurred during login")
-    } finally {
       setLoading(false)
     }
   }
-
-  // Removed demo quickFill function and demo password autofill
 
   return (
     <div className="min-h-[0]">
@@ -79,7 +92,6 @@ export function LoginForm() {
         </CardHeader>
 
         <CardContent className="animate-in fade-in-0 duration-500 delay-500 px-4 sm:px-6">
-        
           <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email" className="text-sm font-medium">

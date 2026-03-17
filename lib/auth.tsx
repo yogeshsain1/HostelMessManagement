@@ -79,33 +79,73 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, password: string): Promise<boolean> => {
     // Mock authentication - in real app, this would call an API
-    console.log('Login attempt:', { email, password })
+    const trimmedEmail = email.trim().toLowerCase()
+    const trimmedPassword = password.trim()
+    
+    console.log('=== LOGIN ATTEMPT ===')
+    console.log('Email (trimmed/lowercase):', trimmedEmail)
+    console.log('Password received:', `"${trimmedPassword}"`)
+    console.log('Password length:', trimmedPassword.length)
+    console.log('Password === "password123":', trimmedPassword === "password123")
+    console.log('Expected: "password123"')
     console.log('Available users:', mockUsers.map(u => u.email))
     
-    const foundUser = mockUsers.find((u) => u.email === email)
-    console.log('Found user:', foundUser)
+    const foundUser = mockUsers.find((u) => u.email.toLowerCase() === trimmedEmail)
+    console.log('Found user:', foundUser ? foundUser.email : 'NOT FOUND')
 
-    // Simple password check for demo
-    if (foundUser && (password === "password123" || password === "demo123")) {
+    // Simple password check for demo - accept any of these passwords
+    const validPasswords = ["password123", "demo123", "Password123", "PASSWORD123"]
+    const isPasswordValid = validPasswords.some(validPwd => trimmedPassword === validPwd)
+    
+    console.log('Password valid:', isPasswordValid)
+    
+    if (foundUser && isPasswordValid) {
+      console.log('✓ Login successful!')
       setUser(foundUser)
-      localStorage.setItem("hostel-user", JSON.stringify(foundUser))
+      
+      // Set localStorage
       try {
-        document.cookie = "hostel-auth=1; path=/; SameSite=Lax"
-      } catch (_) {}
-      console.log('Login successful')
+        localStorage.setItem("hostel-user", JSON.stringify(foundUser))
+        console.log('✓ LocalStorage set')
+      } catch (e) {
+        console.error('✗ LocalStorage error:', e)
+      }
+      
+      // Set cookie with proper parameters
+      try {
+        // Set cookie that expires in 24 hours
+        const expires = new Date(Date.now() + 24 * 60 * 60 * 1000).toUTCString()
+        const cookieString = `hostel-auth=1; expires=${expires}; path=/; SameSite=Lax`
+        document.cookie = cookieString
+        console.log('✓ Cookie set:', cookieString)
+        console.log('✓ Current cookies:', document.cookie)
+        
+        // Verify cookie was set
+        const cookieCheck = document.cookie.split(';').find(c => c.trim().startsWith('hostel-auth='))
+        console.log('✓ Cookie verification:', cookieCheck ? 'SUCCESS' : 'FAILED')
+      } catch (e) {
+        console.error('✗ Cookie error:', e)
+      }
+      
       return true
     }
-    console.log('Login failed')
+    
+    console.log('✗ Login failed - invalid credentials')
     return false
   }
 
   const logout = () => {
+    console.log('=== LOGOUT ===')
     setUser(null)
     localStorage.removeItem("hostel-user")
     // Navigation will be handled by the component calling this function
     try {
-      document.cookie = "hostel-auth=; Max-Age=0; path=/; SameSite=Lax"
-    } catch (_) {}
+      // Clear cookie by setting expiration in the past
+      document.cookie = "hostel-auth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax"
+      console.log('✓ Cookie cleared')
+    } catch (e) {
+      console.error('✗ Cookie clear error:', e)
+    }
   }
 
   const hasRole = (role: string): boolean => {
