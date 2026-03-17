@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CheckCircle } from "lucide-react"
 import { FormError, SuccessMessage, InlineError } from "@/components/error-message"
 import { LoadingSpinner } from "@/components/loading-skeleton"
-import { useRetry } from "@/lib/retry"
+import { useRetry, useAsyncOperation } from "@/lib/retry"
 
 // Mock API call that can fail
 const submitComplaint = async (data: any) => {
@@ -48,10 +48,10 @@ export function ComplaintForm() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   const {
-    execute: handleSubmitComplaint,
+    execute: runOperation,
     isLoading: isSubmitting,
     error: submitError
-  } = useRetry(submitComplaint, { maxAttempts: 2 })
+  } = useAsyncOperation<{ success: boolean; id: string }>()
 
   const validateField = (field: string, value: string) => {
     const errors = { ...fieldErrors }
@@ -106,7 +106,7 @@ export function ComplaintForm() {
     if (!isValid) return
     
     try {
-      await handleSubmitComplaint(formData)
+      await runOperation(() => submitComplaint(formData))
       setSubmitted(true)
       setFormData({ title: "", description: "", category: "", priority: "" })
       setFieldErrors({})

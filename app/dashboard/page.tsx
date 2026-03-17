@@ -34,7 +34,7 @@ const fetchTodaysMenu = async () => {
 export default function DashboardPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
-  const [menuData, setMenuData] = useState(null)
+  const [menuData, setMenuData] = useState<any>(null)
   const [initialLoading, setInitialLoading] = useState(true)
 
   const {

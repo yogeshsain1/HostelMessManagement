@@ -34,7 +34,27 @@ import {
 import { toast } from "sonner"
 
 // Mock data for warden mess management
-const mockMessData = {
+interface MealData {
+  items: string[]
+  attendance: number
+  feedback: number
+}
+
+interface DayMenu {
+  day: string
+  date: string
+  breakfast: MealData
+  lunch: MealData
+  dinner: MealData
+}
+
+const mockMessData: {
+  weeklyMenu: DayMenu[]
+  todayAttendance: Record<string, number>
+  totalResidents: number
+  averageFeedback: number
+  specialDietary: Array<{ name: string; room: string; requirement: string; status: string }>
+} = {
   weeklyMenu: [
     {
       day: "Monday",
@@ -324,17 +344,19 @@ export default function WardenMessPage() {
             </CardHeader>
             <CardContent>
               <div className="grid gap-4 md:grid-cols-3">
-                {["breakfast", "lunch", "dinner"].map((meal) => (
+                {["breakfast", "lunch", "dinner"].map((meal) => {
+                  const mealData = todayMenu[meal as "breakfast" | "lunch" | "dinner"] as MealData
+                  return (
                   <div key={meal} className="border rounded-lg p-4">
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="font-semibold capitalize">{meal}</h3>
                       <Badge variant="outline">
-                        {todayMenu[meal as keyof typeof todayMenu].attendance} present
+                        {mealData.attendance} present
                       </Badge>
                     </div>
                     
                     <div className="space-y-2 mb-3">
-                      {todayMenu[meal as keyof typeof todayMenu].items.map((item, index) => (
+                      {mealData.items.map((item: string, index: number) => (
                         <div key={index} className="text-sm text-muted-foreground">
                           • {item}
                         </div>
@@ -344,19 +366,20 @@ export default function WardenMessPage() {
                     <div className="flex items-center justify-between text-sm">
                       <div className="flex items-center space-x-1">
                         <Star className="h-4 w-4 text-yellow-500" />
-                        <span className={getFeedbackColor(todayMenu[meal as keyof typeof todayMenu].feedback)}>
-                          {todayMenu[meal as keyof typeof todayMenu].feedback}
+                        <span className={getFeedbackColor(mealData.feedback)}>
+                          {mealData.feedback}
                         </span>
                       </div>
                       <div className="text-muted-foreground">
                         {getAttendancePercentage(
-                          todayMenu[meal as keyof typeof todayMenu].attendance,
+                          mealData.attendance,
                           mockMessData.totalResidents
                         )}% attendance
                       </div>
                     </div>
                   </div>
-                ))}
+                  )
+                })}
               </div>
             </CardContent>
           </Card>
@@ -412,30 +435,33 @@ export default function WardenMessPage() {
                       </div>
                       
                       <div className="grid gap-4 md:grid-cols-3">
-                        {["breakfast", "lunch", "dinner"].map((meal) => (
+                        {["breakfast", "lunch", "dinner"].map((meal) => {
+                          const mealData = day[meal as "breakfast" | "lunch" | "dinner"] as MealData
+                          return (
                           <div key={meal} className="border rounded-lg p-3">
                             <div className="flex items-center justify-between mb-2">
                               <h4 className="font-medium capitalize">{meal}</h4>
                               <div className="flex items-center space-x-2">
                                 <Badge variant="secondary">
-                                  {day[meal as keyof typeof day].attendance}
+                                  {mealData.attendance}
                                 </Badge>
                                 <div className="flex items-center space-x-1">
                                   <Star className="h-3 w-3 text-yellow-500" />
-                                  <span className="text-sm">{day[meal as keyof typeof day].feedback}</span>
+                                  <span className="text-sm">{mealData.feedback}</span>
                                 </div>
                               </div>
                             </div>
                             
                             <div className="space-y-1">
-                              {day[meal as keyof typeof day].items.map((item, index) => (
+                              {mealData.items.map((item: string, index: number) => (
                                 <div key={index} className="text-sm text-muted-foreground">
                                   • {item}
                                 </div>
                               ))}
                             </div>
                           </div>
-                        ))}
+                          )
+                        })}
                       </div>
                     </div>
                   ))}
@@ -452,8 +478,8 @@ export default function WardenMessPage() {
                       <div className="space-y-3">
                         {["breakfast", "lunch", "dinner"].map((meal) => {
                           const avgAttendance = Math.round(
-                            mockMessData.weeklyMenu.reduce((sum, day) => 
-                              sum + day[meal as keyof typeof day].attendance, 0
+                            mockMessData.weeklyMenu.reduce((sum, d) => 
+                              sum + (d[meal as "breakfast" | "lunch" | "dinner"] as MealData).attendance, 0
                             ) / mockMessData.weeklyMenu.length
                           )
                           return (
@@ -480,8 +506,8 @@ export default function WardenMessPage() {
                       <div className="space-y-3">
                         {["breakfast", "lunch", "dinner"].map((meal) => {
                           const avgFeedback = (
-                            mockMessData.weeklyMenu.reduce((sum, day) => 
-                              sum + day[meal as keyof typeof day].feedback, 0
+                            mockMessData.weeklyMenu.reduce((sum, d) => 
+                              sum + (d[meal as "breakfast" | "lunch" | "dinner"] as MealData).feedback, 0
                             ) / mockMessData.weeklyMenu.length
                           ).toFixed(1)
                           return (

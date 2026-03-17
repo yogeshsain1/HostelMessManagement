@@ -233,25 +233,28 @@ export default function MessPage() {
                   </div>
 
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                    {Object.entries(day).filter(([key]) => ['breakfast', 'lunch', 'snacks', 'dinner'].includes(key)).map(([mealType, mealData]) => (
+                    {Object.entries(day).filter(([key]) => ['breakfast', 'lunch', 'snacks', 'dinner'].includes(key)).map(([mealType, mealData]) => {
+                      const meal = mealData as { time: string; items: string; rating: number }
+                      return (
                       <div key={mealType} className="p-3 rounded-lg bg-card dark:bg-card/80 border border-border hover:border-border/60 transition-colors">
                         <div className="flex items-center justify-between mb-2">
                           <h4 className="font-medium capitalize text-sm text-foreground">{mealType}</h4>
                           <div className="flex items-center space-x-1">
                             <Star className="h-3 w-3 text-yellow-500 dark:text-yellow-400 fill-current" />
-                            <span className="text-xs text-foreground">{mealData.rating}</span>
+                            <span className="text-xs text-foreground">{meal.rating}</span>
                           </div>
                         </div>
                         
                         <div className="space-y-2">
                           <div className="flex items-center space-x-2 text-xs text-muted-foreground">
                             <Clock className="h-3 w-3" />
-                            <span>{mealData.time}</span>
+                            <span>{meal.time}</span>
                           </div>
-                          <p className="text-sm text-foreground">{mealData.items}</p>
+                          <p className="text-sm text-foreground">{meal.items}</p>
                         </div>
                       </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 </div>
               ))}

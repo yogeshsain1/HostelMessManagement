@@ -456,7 +456,7 @@ export default function WardenResidentsPage() {
                 <Avatar className="h-20 w-20">
                   <AvatarImage src={`/api/avatar/${selectedResident.id}`} alt={selectedResident.fullName} />
                   <AvatarFallback className="text-2xl">
-                    {selectedResident.fullName.split(" ").map(n => n[0]).join("")}
+                    {selectedResident.fullName.split(" ").map((n: string) => n[0]).join("")}
                   </AvatarFallback>
                 </Avatar>
                 
