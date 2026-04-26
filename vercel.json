@@ -1,7 +1,10 @@
 {
   "version": 2,
-  "buildCommand": "rm -rf .next && pnpm build",
+  "buildCommand": "pnpm run build:clean",
   "outputDirectory": ".next",
-  "installCommand": "pnpm install",
-  "framework": "nextjs"
+  "installCommand": "pnpm install --frozen-lockfile",
+  "framework": "nextjs",
+  "engines": {
+    "node": "20.x"
+  }
 }
