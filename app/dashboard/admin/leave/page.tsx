@@ -1,65 +1,62 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { LeaveApproval } from "@/components/admin/leave-approval"
 import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Calendar, CheckCircle, Clock, XCircle } from "lucide-react"
 
-const mockLeaveRequests = [
-  {
-    id: "1",
-    studentName: "Alice Student",
-    roomNumber: "A101",
-    startDate: "2024-01-20",
-    endDate: "2024-01-25",
-    reason: "Going home for family function",
-    status: "pending" as const,
-    createdAt: "2024-01-15",
-    days: 6,
-  },
-  {
-    id: "2",
-    studentName: "Bob Student",
-    roomNumber: "A102",
-    startDate: "2024-01-28",
-    endDate: "2024-01-30",
-    reason: "Medical appointment in hometown",
-    status: "pending" as const,
-    createdAt: "2024-01-12",
-    days: 3,
-  },
-  {
-    id: "3",
-    studentName: "Charlie Student",
-    roomNumber: "B201",
-    startDate: "2024-01-15",
-    endDate: "2024-01-18",
-    reason: "Personal work",
-    status: "approved" as const,
-    createdAt: "2024-01-10",
-    days: 4,
-  },
-  {
-    id: "4",
-    studentName: "David Student",
-    roomNumber: "C301",
-    startDate: "2024-01-10",
-    endDate: "2024-01-12",
-    reason: "Family emergency",
-    status: "rejected" as const,
-    createdAt: "2024-01-08",
-    days: 3,
-  },
-]
-
 export default function AdminLeavePage() {
-  const [requests, setRequests] = useState<typeof mockLeaveRequests>(mockLeaveRequests)
+  const [requests, setRequests] = useState<any[]>([])
 
-  const handleUpdateRequest = (id: string, status: "approved" | "rejected" | "pending", comment?: string) => {
-    setRequests((prev) => prev.map((request) => (request.id === id ? { ...request, status } : request)))
-    console.log("Updated leave request:", { id, status, comment })
+  useEffect(() => {
+    const loadRequests = async () => {
+      try {
+        const response = await fetch("/api/leave-requests", { credentials: "include" })
+        const json = await response.json()
+        if (!response.ok || !json?.success || !Array.isArray(json?.data?.leaveRequests)) return
+
+        setRequests(
+          json.data.leaveRequests.map((request: any) => ({
+            id: request.id,
+            studentName: request.user?.fullName || "Unknown Student",
+            roomNumber: request.user?.roomNumber || "N/A",
+            startDate: new Date(request.startDate).toISOString().slice(0, 10),
+            endDate: new Date(request.endDate).toISOString().slice(0, 10),
+            reason: request.reason,
+            status: request.status.toLowerCase() as "pending" | "approved" | "rejected",
+            createdAt: new Date(request.createdAt).toISOString().slice(0, 10),
+            days: Math.max(1, Math.ceil((new Date(request.endDate).getTime() - new Date(request.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1),
+          })),
+        )
+      } catch {
+        // keep stable UI if API is unavailable
+      }
+    }
+
+    void loadRequests()
+  }, [])
+
+  const handleUpdateRequest = async (id: string, status: "approved" | "rejected" | "pending", comment?: string) => {
+    try {
+      const response = await fetch(`/api/leave-requests/${id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          status: status.toUpperCase(),
+          rejectionReason: status === "rejected" ? comment || "Rejected by admin" : undefined,
+        }),
+      })
+
+      const json = await response.json()
+      if (!response.ok || !json?.success) throw new Error("Update failed")
+
+      setRequests((prev) => prev.map((request) => (request.id === id ? { ...request, status } : request)))
+    } catch {
+      // keep UI stable
+    }
   }
 
   const getRequestsByStatus = (status: string) => {

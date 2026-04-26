@@ -1,7 +1,9 @@
 "use client"
 
 import type React from "react"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
+import { gsap } from "gsap"
+import { useGSAP } from "@gsap/react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -13,6 +15,9 @@ import { EnhancedButton } from "@/components/ui/enhanced-button"
 import { Eye, EyeOff, Mail, Lock } from "lucide-react"
 
 export function LoginForm() {
+  const cardRef = useRef<HTMLDivElement | null>(null)
+  const titleRef = useRef<HTMLDivElement | null>(null)
+  const formRef = useRef<HTMLFormElement | null>(null)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
@@ -21,6 +26,31 @@ export function LoginForm() {
   const [loading, setLoading] = useState(false)
   const { login } = useAuth()
   const router = useRouter()
+
+  useGSAP(
+    () => {
+      gsap.fromTo(
+        cardRef.current,
+        { opacity: 0, y: 20, scale: 0.98 },
+        { opacity: 1, y: 0, scale: 1, duration: 0.8, ease: "power3.out" }
+      )
+
+      gsap.fromTo(titleRef.current, { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.7, ease: "power3.out", delay: 0.1 })
+
+      gsap.fromTo(
+        formRef.current?.querySelectorAll("[data-login-field]"),
+        { opacity: 0, y: 16 },
+        { opacity: 1, y: 0, duration: 0.6, stagger: 0.12, ease: "power3.out", delay: 0.18 }
+      )
+
+      gsap.fromTo(
+        formRef.current?.querySelectorAll("[data-login-action]"),
+        { opacity: 0, y: 14 },
+        { opacity: 1, y: 0, duration: 0.6, ease: "power3.out", delay: 0.32 }
+      )
+    },
+    { scope: cardRef }
+  )
 
   useEffect(() => {
     try {
@@ -40,17 +70,9 @@ export function LoginForm() {
     setLoading(true)
     setError("")
 
-    console.log("=== LOGIN FORM SUBMISSION ===")
-    console.log("Email entered:", email)
-    console.log("Email length:", email.length)
-    console.log("Email trimmed:", email.trim())
-    console.log("Password entered:", password)
-    console.log("Password length:", password.length)
-
     try {
       const success = await login(email.trim(), password.trim())
       if (success) {
-        console.log('✓ Login successful, preparing redirect...')
         try {
           if (rememberEmail) {
             localStorage.setItem("demo-remember-email", "1")
@@ -60,14 +82,9 @@ export function LoginForm() {
             localStorage.removeItem("demo-email")
           }
         } catch (_) {}
-        
-        // Small delay to ensure cookie and localStorage are set
-        setTimeout(() => {
-          console.log('✓ Redirecting to dashboard...')
-          router.push("/dashboard")
-          // Force reload to ensure middleware picks up the cookie
-          setTimeout(() => window.location.href = '/dashboard', 100)
-        }, 100)
+
+        router.replace("/dashboard")
+        router.refresh()
       } else {
         setError("Invalid email or password")
         setLoading(false)
@@ -81,24 +98,33 @@ export function LoginForm() {
 
   return (
     <div className="min-h-[0]">
-      <Card className="w-full max-w-sm sm:max-w-md mx-auto relative z-10 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 bg-card/80 backdrop-blur-sm border-2 border-primary/20 shadow-xl rounded-xl">
-        <CardHeader className="text-center px-4 sm:px-6 py-6">
-          <CardTitle className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent animate-in fade-in-0 duration-500 delay-300">
-            Poornima University
-          </CardTitle>
-          <CardDescription className="animate-in fade-in-0 duration-500 delay-400 text-sm text-muted-foreground">
-            Hostel Management System - Jaipur Campus
-          </CardDescription>
+      <Card
+        ref={cardRef}
+        className="w-full max-w-sm sm:max-w-md mx-auto relative z-10 overflow-hidden border border-white/10 bg-white/6 shadow-[0_30px_100px_rgba(0,0,0,0.4)] backdrop-blur-2xl rounded-[1.75rem] text-white"
+      >
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300/80 to-transparent" />
+        <CardHeader className="text-center px-4 sm:px-6 pt-7 pb-5 sm:pt-8 sm:pb-6">
+          <div ref={titleRef} className="space-y-2">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/8 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.24em] text-white/65 backdrop-blur-xl">
+              Secure sign-in
+            </div>
+            <CardTitle className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+              Poornima University
+            </CardTitle>
+            <CardDescription className="text-sm sm:text-base text-white/65">
+              Hostel Management System - Jaipur Campus
+            </CardDescription>
+          </div>
         </CardHeader>
 
-        <CardContent className="animate-in fade-in-0 duration-500 delay-500 px-4 sm:px-6">
-          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-medium">
+        <CardContent className="px-4 sm:px-6 pb-6 sm:pb-7">
+          <form ref={formRef} onSubmit={handleSubmit} className="space-y-4 sm:space-y-4">
+            <div data-login-field className="space-y-2">
+              <Label htmlFor="email" className="text-sm font-medium text-white/85">
                 University Email
               </Label>
               <div className="relative">
-                <Mail className="h-4 w-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+                <Mail className="h-4 w-4 text-white/45 absolute left-3 top-1/2 -translate-y-1/2" />
                 <Input
                   id="email"
                   type="email"
@@ -106,17 +132,17 @@ export function LoginForm() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="pl-9 transition-all duration-300 focus:scale-[1.02] focus:ring-2 focus:ring-primary/20 h-11 sm:h-10 text-base sm:text-sm bg-background/50 backdrop-blur-sm border-border/50"
+                  className="pl-9 transition-all duration-300 focus:scale-[1.01] focus:ring-2 focus:ring-cyan-300/20 h-11 sm:h-10 text-base sm:text-sm bg-white/8 backdrop-blur-sm border-white/10 text-white placeholder:text-white/35"
                 />
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-sm font-medium">
+            <div data-login-field className="space-y-2">
+              <Label htmlFor="password" className="text-sm font-medium text-white/85">
                 Password
               </Label>
               <div className="relative">
-                <Lock className="h-4 w-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+                <Lock className="h-4 w-4 text-white/45 absolute left-3 top-1/2 -translate-y-1/2" />
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
@@ -124,12 +150,12 @@ export function LoginForm() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="pl-9 pr-10 transition-all duration-300 focus:scale-[1.02] focus:ring-2 focus:ring-primary/20 h-11 sm:h-10 text-base sm:text-sm bg-background/50 backdrop-blur-sm border-border/50"
+                  className="pl-9 pr-10 transition-all duration-300 focus:scale-[1.01] focus:ring-2 focus:ring-cyan-300/20 h-11 sm:h-10 text-base sm:text-sm bg-white/8 backdrop-blur-sm border-white/10 text-white placeholder:text-white/35"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-muted-foreground hover:text-foreground"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-2 text-white/55 transition-colors hover:bg-white/8 hover:text-white"
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -137,30 +163,31 @@ export function LoginForm() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between text-sm">
-              <label className="flex items-center gap-2 select-none">
+            <div data-login-field className="flex items-center justify-between text-sm">
+              <label className="flex items-center gap-2 select-none text-white/70">
                 <input
                   type="checkbox"
                   checked={rememberEmail}
                   onChange={(e) => setRememberEmail(e.target.checked)}
-                  className="h-3.5 w-3.5 accent-primary"
+                  className="h-3.5 w-3.5 accent-cyan-400"
                 />
-                <span className="text-muted-foreground">Remember email</span>
+                <span>Remember email</span>
               </label>
             </div>
 
             {error && (
               <Alert
                 variant="destructive"
-                className="animate-in slide-in-from-top-2 duration-300 border-destructive/50 bg-destructive/10"
+                className="border-destructive/40 bg-destructive/15 text-white"
               >
                 <AlertDescription className="text-sm">{error}</AlertDescription>
               </Alert>
             )}
 
             <EnhancedButton
+              data-login-action
               type="submit"
-              className="w-full h-11 sm:h-10 text-base sm:text-sm font-medium"
+              className="w-full h-11 sm:h-10 text-base sm:text-sm font-medium shadow-[0_18px_40px_rgba(34,211,238,0.22)]"
               gradient
               glow
               disabled={loading}

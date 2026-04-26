@@ -1,0 +1,96 @@
+<html><body style='background:#1e1e1e;color:#d4d4d4;font-family:monospace;font-size:18px;padding:20px;'><h1>app/api/complaints/route.ts</h1><pre>import { NextRequest } from &quot;next/server&quot;
+import { z } from &quot;zod&quot;
+import { badRequest, ok, serverError, unauthorized } from &quot;@/lib/api&quot;
+import { prisma } from &quot;@/lib/prisma&quot;
+import { getAuthClaims } from &quot;@/lib/server-auth&quot;
+
+const CreateComplaintSchema = z.object({
+	title: z.string().min(3).max(120),
+	description: z.string().min(10).max(1000),
+	category: z.string().min(2).max(60),
+	priority: z.enum([&quot;LOW&quot;, &quot;MEDIUM&quot;, &quot;HIGH&quot;]).default(&quot;MEDIUM&quot;),
+})
+
+const QuerySchema = z.object({
+	status: z.enum([&quot;PENDING&quot;, &quot;IN_PROGRESS&quot;, &quot;RESOLVED&quot;]).optional(),
+	mine: z
+		.string()
+		.optional()
+		.transform((value) =&gt; value === &quot;true&quot;),
+})
+
+function isPrismaUnavailable(err: unknown) {
+	return (
+		typeof err === &quot;object&quot; &amp;&amp;
+		err !== null &amp;&amp;
+		&quot;name&quot; in err &amp;&amp;
+		(String((err as { name?: string }).name) === &quot;PrismaClientInitializationError&quot; ||
+			String((err as { name?: string }).name) === &quot;PrismaClientKnownRequestError&quot;)
+	)
+}
+
+export async function GET(request: NextRequest) {
+	try {
+		const claims = getAuthClaims(request)
+		if (!claims) return unauthorized()
+
+		const query = QuerySchema.safeParse({
+			status: request.nextUrl.searchParams.get(&quot;status&quot;) ?? undefined,
+			mine: request.nextUrl.searchParams.get(&quot;mine&quot;) ?? undefined,
+		})
+
+		if (!query.success) return badRequest(&quot;Invalid query params&quot;, query.error.format())
+
+		const where: {
+			status?: &quot;PENDING&quot; | &quot;IN_PROGRESS&quot; | &quot;RESOLVED&quot;
+			userId?: string
+		} = {}
+
+		if (query.data.status) where.status = query.data.status
+		if (claims.role === &quot;student&quot; || query.data.mine) where.userId = claims.userId
+
+		const complaints = await prisma.complaint.findMany({
+			where,
+			orderBy: { createdAt: &quot;desc&quot; },
+			include: {
+				user: {
+					select: { id: true, fullName: true, email: true, roomNumber: true, hostelId: true },
+				},
+			},
+		})
+
+		return ok({ complaints })
+	} catch (err) {
+		if (isPrismaUnavailable(err)) {
+			return ok({ complaints: [] })
+		}
+
+		return serverError(&quot;Failed to fetch complaints&quot;, err)
+	}
+}
+
+export async function POST(request: NextRequest) {
+	try {
+		const claims = getAuthClaims(request)
+		if (!claims) return unauthorized()
+
+		const json = await request.json().catch(() =&gt; ({}))
+		const parsed = CreateComplaintSchema.safeParse(json)
+		if (!parsed.success) return badRequest(&quot;Invalid complaint payload&quot;, parsed.error.format())
+
+		const complaint = await prisma.complaint.create({
+			data: {
+				title: parsed.data.title,
+				description: parsed.data.description,
+				category: parsed.data.category,
+				priority: parsed.data.priority,
+				userId: claims.userId,
+			},
+		})
+
+		return ok({ complaint })
+	} catch (err) {
+		return serverError(&quot;Failed to create complaint&quot;, err)
+	}
+}
+</pre></body></html>

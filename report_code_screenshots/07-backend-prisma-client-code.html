@@ -1,0 +1,13 @@
+<html><body style='background:#1e1e1e;color:#d4d4d4;font-family:monospace;font-size:18px;padding:20px;'><h1>lib/prisma.ts</h1><pre>import { PrismaClient } from &quot;@prisma/client&quot;
+
+declare global {
+  // eslint-disable-next-line no-var
+  var __prisma: PrismaClient | undefined
+}
+
+export const prisma = global.__prisma ?? new PrismaClient()
+
+if (process.env.NODE_ENV !== &quot;production&quot;) {
+  global.__prisma = prisma
+}
+</pre></body></html>

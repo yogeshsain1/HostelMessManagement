@@ -11,6 +11,7 @@ This guide provides step-by-step instructions to install and run the Hostel Mess
 Before you begin, ensure you have the following installed on your system:
 
 ### **Required Software:**
+
 1. **Node.js** (v18.0.0 or higher)
    - Download: https://nodejs.org/
    - Verify installation: `node --version`
@@ -23,6 +24,7 @@ Before you begin, ensure you have the following installed on your system:
    - Verify installation: `git --version`
 
 ### **System Requirements:**
+
 - **OS:** Windows 10/11, macOS, or Linux
 - **RAM:** Minimum 4GB (8GB recommended)
 - **Storage:** 500MB free space
@@ -35,6 +37,7 @@ Before you begin, ensure you have the following installed on your system:
 ### **Option 1: Using Provided ZIP File**
 
 1. **Extract the Project**
+
    ```bash
    # Extract the ZIP file to your desired location
    # Example: C:\Projects\HostelMessManagement
@@ -45,21 +48,26 @@ Before you begin, ensure you have the following installed on your system:
    - **macOS/Linux:** Open Terminal application
 
 3. **Navigate to Project Directory**
+
    ```bash
    cd path/to/HostelMessManagement
    # Example: cd C:\Projects\HostelMessManagement
    ```
 
 4. **Install Dependencies**
+
    ```bash
    npm install --legacy-peer-deps
    ```
+
    ⏱️ This will take 2-5 minutes depending on your internet speed
 
 5. **Start the Application**
+
    ```bash
    npm run dev
    ```
+
    ✅ Wait for "Ready" message (usually 10-20 seconds)
 
 6. **Open in Browser**
@@ -92,24 +100,30 @@ npm run dev
 ## 🎯 **Quick Start Guide**
 
 ### **Step 1: Access the Application**
+
 After running `npm run dev`, open: **http://localhost:3000**
 
 ### **Step 2: Login**
+
 Use one of these demo accounts:
 
 #### **Student Account**
+
 - **Email:** `student1@poornima.edu.in`
 - **Password:** `password123`
 
 #### **Warden Account**
+
 - **Email:** `warden1@poornima.edu.in`
 - **Password:** `password123`
 
 #### **Admin Account**
+
 - **Email:** `admin@poornima.edu.in`
 - **Password:** `password123`
 
 ### **Step 3: Explore Features**
+
 - Click the demo account buttons on login page for auto-fill
 - Navigate through different modules using the sidebar
 - Test student, warden, and admin functionalities
@@ -119,7 +133,9 @@ Use one of these demo accounts:
 ## 🔧 **Troubleshooting**
 
 ### **Problem: "Port 3000 is already in use"**
+
 **Solution:**
+
 ```bash
 # Kill the process using port 3000
 # Windows:
@@ -135,7 +151,9 @@ npm run dev -- -p 3001
 ```
 
 ### **Problem: npm install fails**
+
 **Solution:**
+
 ```bash
 # Clear npm cache
 npm cache clean --force
@@ -149,7 +167,9 @@ npm install --legacy-peer-deps
 ```
 
 ### **Problem: "Cannot find module" errors**
+
 **Solution:**
+
 ```bash
 # Reinstall dependencies
 rm -rf node_modules .next
@@ -158,14 +178,18 @@ npm run dev
 ```
 
 ### **Problem: Page shows blank or won't load**
+
 **Solution:**
+
 - Clear browser cache (Ctrl + Shift + Delete)
 - Try incognito/private mode
 - Check browser console for errors (F12 → Console tab)
 - Restart the dev server
 
 ### **Problem: Login doesn't work**
+
 **Solution:**
+
 - Make sure you're using exact credentials (case-sensitive)
 - Clear browser localStorage:
   - Press F12 → Application → Local Storage → Clear
@@ -177,7 +201,9 @@ npm run dev
 ## 📱 **Testing on Mobile**
 
 ### **Option 1: Same Network**
+
 1. Find your computer's IP address:
+
    ```bash
    # Windows:
    ipconfig
@@ -194,6 +220,7 @@ npm run dev
    - Example: `http://192.168.1.5:3000`
 
 ### **Option 2: Browser Dev Tools**
+
 1. In Chrome/Edge:
    - Press F12
    - Click "Toggle device toolbar" (phone icon)
@@ -205,31 +232,36 @@ npm run dev
 ## 🎨 **Features to Test**
 
 ### **Student Features:**
+
 ✅ View personalized dashboard  
 ✅ Check today's mess menu  
 ✅ Submit complaints  
 ✅ Apply for leave  
 ✅ View hostel information  
-✅ Edit profile  
+✅ Edit profile
 
 ### **Warden Features:**
+
 ✅ View all complaints  
 ✅ Approve/reject leave requests  
 ✅ Manage residents  
 ✅ Update mess menu  
-✅ View reports  
+✅ View reports
 
 ### **Admin Features:**
+
 ✅ System analytics  
 ✅ User management  
-✅ Full system access  
+✅ Full system access
 
 ---
 
 ## 🛠️ **Advanced Configuration**
 
 ### **Changing Port**
+
 Edit `package.json`:
+
 ```json
 {
   "scripts": {
@@ -239,7 +271,9 @@ Edit `package.json`:
 ```
 
 ### **Environment Variables (Optional)**
+
 Create `.env.local` file:
+
 ```env
 NEXT_PUBLIC_APP_NAME="Hostel Management"
 NEXT_PUBLIC_API_URL="http://localhost:3000/api"
@@ -310,6 +344,7 @@ If you encounter issues during installation:
 You'll know the installation was successful when:
 
 1. Terminal shows:
+
    ```
    ✓ Ready in 2.1s
    - Local: http://localhost:3000
@@ -327,6 +362,7 @@ You'll know the installation was successful when:
 ## 🎓 **For Project Evaluators**
 
 This is a **fully functional demo application** with:
+
 - ✅ Working authentication
 - ✅ Role-based dashboards
 - ✅ Complete UI/UX implementation

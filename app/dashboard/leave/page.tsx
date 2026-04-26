@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useAuth } from "@/lib/auth"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -23,75 +23,44 @@ import Link from "next/link"
 export default function LeavePage() {
   const { user } = useAuth()
   const [filter, setFilter] = useState<"all" | "pending" | "approved" | "rejected">("all")
+  const [leaveRequests, setLeaveRequests] = useState<any[]>([])
+
+  useEffect(() => {
+    if (!user) return;
+    
+    const loadLeaveRequests = async () => {
+      try {
+        const response = await fetch("/api/leave-requests?mine=true", { credentials: "include" })
+        const json = await response.json()
+        if (!response.ok || !json?.success || !Array.isArray(json?.data?.leaveRequests)) return
+
+        setLeaveRequests(
+          json.data.leaveRequests.map((request: any) => ({
+            id: request.id,
+            type: request.type.replace("_", " ").toLowerCase().replace(/\b\w/g, (char: string) => char.toUpperCase()),
+            reason: request.reason,
+            fromDate: new Date(request.startDate).toISOString().slice(0, 10),
+            toDate: new Date(request.endDate).toISOString().slice(0, 10),
+            duration: `${Math.max(1, Math.ceil((new Date(request.endDate).getTime() - new Date(request.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1)} days`,
+            status: request.status.replace("_", " ").toLowerCase().replace(/\b\w/g, (char: string) => char.toUpperCase()),
+            submittedDate: new Date(request.createdAt).toISOString().slice(0, 10),
+            approvedBy: request.approvedBy || null,
+            approvedDate: request.approvedAt ? new Date(request.approvedAt).toISOString().slice(0, 10) : null,
+            roomNumber: request.user?.roomNumber || "N/A",
+            destination: request.destination || "Not specified",
+            emergencyContact: request.user?.emergencyContactPhone || "Not provided",
+            rejectionReason: request.rejectionReason || undefined,
+          })),
+        )
+      } catch (_) {}
+    }
+
+    void loadLeaveRequests()
+  }, [user])
 
   if (!user) {
     return null
   }
-
-  // Mock leave requests data
-const mockLeaveRequests = [
-  {
-      id: 1,
-      type: "Personal Leave",
-      reason: "Family function at home. Need to attend important family gathering.",
-      fromDate: "2024-01-20",
-      toDate: "2024-01-22",
-      duration: "3 days",
-      status: "Pending",
-      submittedDate: "2024-01-15",
-      approvedBy: null,
-      approvedDate: null,
-      roomNumber: "A-101",
-      destination: "Jaipur, Rajasthan",
-      emergencyContact: "+91-9876543210"
-    },
-    {
-      id: 2,
-      type: "Medical Leave",
-      reason: "Dental appointment and follow-up treatment required.",
-      fromDate: "2024-01-18",
-      toDate: "2024-01-18",
-      duration: "1 day",
-      status: "Approved",
-      submittedDate: "2024-01-12",
-      approvedBy: "Mr. Rajesh Sharma",
-      approvedDate: "2024-01-13",
-      roomNumber: "A-101",
-      destination: "Local Hospital, Jaipur",
-      emergencyContact: "+91-9876543210"
-    },
-    {
-      id: 3,
-      type: "Academic Leave",
-      reason: "Attending a technical workshop in Delhi for skill development.",
-      fromDate: "2024-01-25",
-      toDate: "2024-01-27",
-      duration: "3 days",
-      status: "Rejected",
-      submittedDate: "2024-01-10",
-      approvedBy: "Mr. Rajesh Sharma",
-      approvedDate: "2024-01-11",
-      roomNumber: "A-101",
-      destination: "Delhi, India",
-      emergencyContact: "+91-9876543210",
-      rejectionReason: "Workshop dates conflict with important academic schedule"
-    },
-    {
-      id: 4,
-      type: "Personal Leave",
-      reason: "Attending friend's wedding ceremony.",
-      fromDate: "2024-01-30",
-      toDate: "2024-02-01",
-      duration: "3 days",
-      status: "Pending",
-      submittedDate: "2024-01-16",
-      approvedBy: null,
-      approvedDate: null,
-      roomNumber: "A-101",
-      destination: "Mumbai, Maharashtra",
-      emergencyContact: "+91-9876543210"
-    }
-  ]
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
@@ -132,16 +101,16 @@ const mockLeaveRequests = [
     }
   }
 
-  const filteredRequests = mockLeaveRequests.filter(request => {
+  const filteredRequests = leaveRequests.filter(request => {
     if (filter === "all") return true
     return request.status.toLowerCase() === filter
   })
 
   const stats = {
-    total: mockLeaveRequests.length,
-    pending: mockLeaveRequests.filter(r => r.status === "Pending").length,
-    approved: mockLeaveRequests.filter(r => r.status === "Approved").length,
-    rejected: mockLeaveRequests.filter(r => r.status === "Rejected").length
+    total: leaveRequests.length,
+    pending: leaveRequests.filter(r => r.status === "Pending").length,
+    approved: leaveRequests.filter(r => r.status === "Approved").length,
+    rejected: leaveRequests.filter(r => r.status === "Rejected").length
   }
 
   return (

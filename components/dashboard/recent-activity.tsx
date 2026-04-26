@@ -1,7 +1,9 @@
+"use client"
+
+import { useEffect, useMemo, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Clock, MessageSquare, Calendar, UtensilsCrossed } from "lucide-react"
-import { activities as mockActivities } from "@/lib/mock-data"
 
 interface ActivityItem {
   id: string
@@ -9,10 +11,24 @@ interface ActivityItem {
   title: string
   description: string
   timestamp: string
+  createdAt: string
   status?: string
 }
 
-// data imported from mock-data.ts
+const formatTimestamp = (value: string) => {
+  const createdAt = new Date(value).getTime()
+  const now = Date.now()
+  const diffMinutes = Math.max(0, Math.floor((now - createdAt) / 60000))
+
+  if (diffMinutes < 1) return "just now"
+  if (diffMinutes < 60) return `${diffMinutes} minutes ago`
+
+  const diffHours = Math.floor(diffMinutes / 60)
+  if (diffHours < 24) return `${diffHours} hours ago`
+
+  const diffDays = Math.floor(diffHours / 24)
+  return `${diffDays} days ago`
+}
 
 const getIcon = (type: ActivityItem["type"]) => {
   switch (type) {
@@ -43,14 +59,85 @@ const getStatusColor = (status?: string) => {
 }
 
 export function RecentActivity() {
+  const [activities, setActivities] = useState<ActivityItem[]>([])
+
+  useEffect(() => {
+    const loadRecentActivity = async () => {
+      try {
+        const [complaintsRes, leavesRes, notificationsRes] = await Promise.all([
+          fetch("/api/complaints?mine=true", { credentials: "include" }),
+          fetch("/api/leave-requests?mine=true", { credentials: "include" }),
+          fetch("/api/notifications", { credentials: "include" }),
+        ])
+
+        const [complaintsJson, leavesJson, notificationsJson] = await Promise.all([
+          complaintsRes.json().catch(() => ({})),
+          leavesRes.json().catch(() => ({})),
+          notificationsRes.json().catch(() => ({})),
+        ])
+
+        const complaintActivities: ActivityItem[] = Array.isArray(complaintsJson?.data?.complaints)
+          ? complaintsJson.data.complaints.slice(0, 4).map((item: any) => ({
+              id: `complaint-${item.id}`,
+              type: "complaint",
+              title: item.title,
+              description: item.description,
+              timestamp: formatTimestamp(item.createdAt),
+              createdAt: item.createdAt,
+              status: String(item.status || "").toLowerCase().replaceAll("_", "-"),
+            }))
+          : []
+
+        const leaveActivities: ActivityItem[] = Array.isArray(leavesJson?.data?.leaveRequests)
+          ? leavesJson.data.leaveRequests.slice(0, 4).map((item: any) => ({
+              id: `leave-${item.id}`,
+              type: "leave",
+              title: "Leave Request",
+              description: item.reason,
+              timestamp: formatTimestamp(item.createdAt),
+              createdAt: item.createdAt,
+              status: String(item.status || "").toLowerCase().replaceAll("_", "-"),
+            }))
+          : []
+
+        const notificationActivities: ActivityItem[] = Array.isArray(notificationsJson?.data?.notifications)
+          ? notificationsJson.data.notifications.slice(0, 4).map((item: any) => ({
+              id: `notification-${item.id}`,
+              type: "notification",
+              title: item.title,
+              description: item.message,
+              timestamp: formatTimestamp(item.createdAt),
+              createdAt: item.createdAt,
+              status: item.read ? "read" : "pending",
+            }))
+          : []
+
+        const merged = [...complaintActivities, ...leaveActivities, ...notificationActivities]
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+          .slice(0, 6)
+
+        setActivities(merged)
+      } catch (_) {
+        setActivities([])
+      }
+    }
+
+    void loadRecentActivity()
+  }, [])
+
+  const hasActivities = useMemo(() => activities.length > 0, [activities])
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Recent Activity</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
-          {mockActivities.map((activity) => {
+        {!hasActivities ? (
+          <div className="text-sm text-muted-foreground">No recent activity available.</div>
+        ) : (
+          <div className="space-y-4">
+            {activities.map((activity) => {
             const Icon = getIcon(activity.type)
             return (
               <div key={activity.id} className="flex items-start space-x-3">
@@ -73,8 +160,9 @@ export function RecentActivity() {
                 </div>
               </div>
             )
-          })}
-        </div>
+            })}
+          </div>
+        )}
       </CardContent>
     </Card>
   )

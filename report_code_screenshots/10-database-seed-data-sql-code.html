@@ -1,0 +1,30 @@
+<html><body style='background:#1e1e1e;color:#d4d4d4;font-family:monospace;font-size:18px;padding:20px;'><h1>scripts/02-seed-data.sql</h1><pre>-- Seed data for Hostel &amp; Mess Management App
+
+-- Insert sample hostels
+INSERT INTO hostels (id, name, total_rooms) VALUES
+  (&#39;550e8400-e29b-41d4-a716-446655440001&#39;, &#39;Sunrise Hostel&#39;, 100),
+  (&#39;550e8400-e29b-41d4-a716-446655440002&#39;, &#39;Moonlight Hostel&#39;, 80),
+  (&#39;550e8400-e29b-41d4-a716-446655440003&#39;, &#39;Green Valley Hostel&#39;, 120);
+
+-- Insert sample users (password is &#39;password123&#39; hashed)
+INSERT INTO users (id, email, password_hash, full_name, phone, role, hostel_id, room_number) VALUES
+  (&#39;550e8400-e29b-41d4-a716-446655440010&#39;, &#39;admin@hostel.com&#39;, &#39;$2b$10$rOzJqQqQqQqQqQqQqQqQqO&#39;, &#39;Admin User&#39;, &#39;+1234567890&#39;, &#39;admin&#39;, NULL, NULL),
+  (&#39;550e8400-e29b-41d4-a716-446655440011&#39;, &#39;warden1@hostel.com&#39;, &#39;$2b$10$rOzJqQqQqQqQqQqQqQqQqO&#39;, &#39;John Warden&#39;, &#39;+1234567891&#39;, &#39;warden&#39;, &#39;550e8400-e29b-41d4-a716-446655440001&#39;, NULL),
+  (&#39;550e8400-e29b-41d4-a716-446655440012&#39;, &#39;student1@hostel.com&#39;, &#39;$2b$10$rOzJqQqQqQqQqQqQqQqQqO&#39;, &#39;Alice Student&#39;, &#39;+1234567892&#39;, &#39;student&#39;, &#39;550e8400-e29b-41d4-a716-446655440001&#39;, &#39;A101&#39;),
+  (&#39;550e8400-e29b-41d4-a716-446655440013&#39;, &#39;student2@hostel.com&#39;, &#39;$2b$10$rOzJqQqQqQqQqQqQqQqQqO&#39;, &#39;Bob Student&#39;, &#39;+1234567893&#39;, &#39;student&#39;, &#39;550e8400-e29b-41d4-a716-446655440001&#39;, &#39;A102&#39;);
+
+-- Update hostel wardens
+UPDATE hostels SET warden_id = &#39;550e8400-e29b-41d4-a716-446655440011&#39; 
+WHERE id = &#39;550e8400-e29b-41d4-a716-446655440001&#39;;
+
+-- Insert sample mess menu for current week
+INSERT INTO mess_menu (date, meal_type, items) VALUES
+  (CURRENT_DATE, &#39;breakfast&#39;, ARRAY[&#39;Idli&#39;, &#39;Sambar&#39;, &#39;Coconut Chutney&#39;, &#39;Tea/Coffee&#39;]),
+  (CURRENT_DATE, &#39;lunch&#39;, ARRAY[&#39;Rice&#39;, &#39;Dal&#39;, &#39;Vegetable Curry&#39;, &#39;Pickle&#39;, &#39;Curd&#39;]),
+  (CURRENT_DATE, &#39;dinner&#39;, ARRAY[&#39;Roti&#39;, &#39;Paneer Curry&#39;, &#39;Rice&#39;, &#39;Dal&#39;, &#39;Salad&#39;]);
+
+-- Insert sample complaints
+INSERT INTO complaints (user_id, hostel_id, title, description, category, status, priority) VALUES
+  (&#39;550e8400-e29b-41d4-a716-446655440012&#39;, &#39;550e8400-e29b-41d4-a716-446655440001&#39;, &#39;Broken AC in Room A101&#39;, &#39;The air conditioner in my room is not working properly&#39;, &#39;maintenance&#39;, &#39;pending&#39;, &#39;high&#39;),
+  (&#39;550e8400-e29b-41d4-a716-446655440013&#39;, &#39;550e8400-e29b-41d4-a716-446655440001&#39;, &#39;Bathroom Cleaning Issue&#39;, &#39;Common bathroom on 1st floor needs cleaning&#39;, &#39;cleanliness&#39;, &#39;in-progress&#39;, &#39;medium&#39;);
+</pre></body></html>

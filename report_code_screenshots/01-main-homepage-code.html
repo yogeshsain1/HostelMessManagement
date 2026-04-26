@@ -1,0 +1,9 @@
+﻿<html><body style='background:#1e1e1e;color:#d4d4d4;font-family:monospace;font-size:18px;padding:20px;'><h1>app/page.tsx</h1><pre>import { cookies } from &quot;next/headers&quot;
+import { redirect } from &quot;next/navigation&quot;
+
+export default async function HomePage() {
+  const cookieStore = await cookies()
+  const authCookie = cookieStore.get(&quot;hostel-auth&quot;)?.value
+  redirect(authCookie ? &quot;/dashboard&quot; : &quot;/login&quot;)
+}
+</pre></body></html>

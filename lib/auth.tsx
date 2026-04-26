@@ -36,115 +36,81 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-// Mock users for demonstration (matches demo accounts shown on login screen)
-const mockUsers: User[] = [
-  {
-    id: "1",
-    email: "admin@poornima.edu.in",
-    fullName: "Admin User",
-    phone: "+91-9876543210",
-    role: "admin",
-  },
-  {
-    id: "2",
-    email: "warden1@poornima.edu.in",
-    fullName: "Warden Sharma",
-    phone: "+91-9876543211",
-    role: "warden",
-    hostelId: "1",
-  },
-  {
-    id: "3",
-    email: "student1@poornima.edu.in",
-    fullName: "Rahul Kumar",
-    phone: "+91-9876543212",
-    role: "student",
-    hostelId: "1",
-    roomNumber: "A-101",
-  },
-]
+type ApiUser = User
+
+const normalizeUser = (user: ApiUser): User => ({
+  ...user,
+  role: user.role.toLowerCase() as User["role"],
+})
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Check for stored user session
-    const storedUser = localStorage.getItem("hostel-user")
-    if (storedUser) {
-      setUser(JSON.parse(storedUser))
+    const hydrateSession = async () => {
+      try {
+        const response = await fetch("/api/users/profile", {
+          credentials: "include",
+        })
+
+        if (response.ok) {
+          const json = await response.json()
+          if (json?.success && json?.data?.user) {
+            const currentUser = normalizeUser(json.data.user)
+            setUser(currentUser)
+            localStorage.setItem("hostel-user", JSON.stringify(currentUser))
+            return
+          }
+        }
+      } catch (_) {
+        // ignore and fall back to local storage
+      }
+
+      try {
+        const storedUser = localStorage.getItem("hostel-user")
+        if (storedUser) {
+          setUser(JSON.parse(storedUser))
+        }
+      } catch (_) {
+        // ignore storage parsing issues
+      }
+
+      setLoading(false)
     }
-    setLoading(false)
+
+    void hydrateSession().finally(() => setLoading(false))
   }, [])
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    // Mock authentication - in real app, this would call an API
-    const trimmedEmail = email.trim().toLowerCase()
-    const trimmedPassword = password.trim()
-    
-    console.log('=== LOGIN ATTEMPT ===')
-    console.log('Email (trimmed/lowercase):', trimmedEmail)
-    console.log('Password received:', `"${trimmedPassword}"`)
-    console.log('Password length:', trimmedPassword.length)
-    console.log('Password === "password123":', trimmedPassword === "password123")
-    console.log('Expected: "password123"')
-    console.log('Available users:', mockUsers.map(u => u.email))
-    
-    const foundUser = mockUsers.find((u) => u.email.toLowerCase() === trimmedEmail)
-    console.log('Found user:', foundUser ? foundUser.email : 'NOT FOUND')
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email: email.trim(), password: password.trim() }),
+      })
 
-    // Simple password check for demo - accept any of these passwords
-    const validPasswords = ["password123", "demo123", "Password123", "PASSWORD123"]
-    const isPasswordValid = validPasswords.some(validPwd => trimmedPassword === validPwd)
-    
-    console.log('Password valid:', isPasswordValid)
-    
-    if (foundUser && isPasswordValid) {
-      console.log('✓ Login successful!')
-      setUser(foundUser)
-      
-      // Set localStorage
-      try {
-        localStorage.setItem("hostel-user", JSON.stringify(foundUser))
-        console.log('✓ LocalStorage set')
-      } catch (e) {
-        console.error('✗ LocalStorage error:', e)
+      const json = await response.json()
+      if (!response.ok || !json?.success || !json?.data?.user) {
+        return false
       }
-      
-      // Set cookie with proper parameters
-      try {
-        // Set cookie that expires in 24 hours
-        const expires = new Date(Date.now() + 24 * 60 * 60 * 1000).toUTCString()
-        const cookieString = `hostel-auth=1; expires=${expires}; path=/; SameSite=Lax`
-        document.cookie = cookieString
-        console.log('✓ Cookie set:', cookieString)
-        console.log('✓ Current cookies:', document.cookie)
-        
-        // Verify cookie was set
-        const cookieCheck = document.cookie.split(';').find(c => c.trim().startsWith('hostel-auth='))
-        console.log('✓ Cookie verification:', cookieCheck ? 'SUCCESS' : 'FAILED')
-      } catch (e) {
-        console.error('✗ Cookie error:', e)
-      }
-      
+
+      const currentUser = normalizeUser(json.data.user)
+      setUser(currentUser)
+      localStorage.setItem("hostel-user", JSON.stringify(currentUser))
       return true
+    } catch (_) {
+      return false
     }
-    
-    console.log('✗ Login failed - invalid credentials')
-    return false
   }
 
   const logout = () => {
-    console.log('=== LOGOUT ===')
     setUser(null)
     localStorage.removeItem("hostel-user")
-    // Navigation will be handled by the component calling this function
     try {
-      // Clear cookie by setting expiration in the past
       document.cookie = "hostel-auth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax"
-      console.log('✓ Cookie cleared')
-    } catch (e) {
-      console.error('✗ Cookie clear error:', e)
+    } catch (_) {
     }
   }
 
@@ -154,12 +120,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const updateProfile = async (updates: Partial<User>): Promise<User | null> => {
     if (!user) return null
-    const updated: User = { ...user, ...updates }
-    setUser(updated)
     try {
+      const response = await fetch("/api/users/profile", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(updates),
+      })
+
+      const json = await response.json()
+      if (!response.ok || !json?.success || !json?.data?.user) {
+        return null
+      }
+
+      const updated = normalizeUser(json.data.user)
+      setUser(updated)
       localStorage.setItem("hostel-user", JSON.stringify(updated))
-    } catch (_) {}
-    return updated
+      return updated
+    } catch (_) {
+      return null
+    }
   }
 
   return (

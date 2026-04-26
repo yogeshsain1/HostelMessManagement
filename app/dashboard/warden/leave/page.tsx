@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useAuth } from "@/lib/auth"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -29,95 +29,6 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 
-// Mock data for warden leave requests
-const mockLeaveRequests = [
-  {
-    id: "1",
-    studentName: "Rahul Kumar",
-    studentEmail: "rahul@poornima.edu.in",
-    studentPhone: "+91-9876543212",
-    roomNumber: "A-101",
-    leaveType: "personal",
-    reason: "Family function at home, need to attend important ceremony",
-    startDate: "2024-01-20",
-    endDate: "2024-01-22",
-    duration: "3 days",
-    status: "pending",
-    submittedAt: "2024-01-15T10:30:00Z",
-    emergencyContact: "+91-9876543210",
-    emergencyRelation: "Father"
-  },
-  {
-    id: "2",
-    studentName: "Priya Sharma",
-    studentEmail: "priya@poornima.edu.in",
-    studentPhone: "+91-9876543213",
-    roomNumber: "B-205",
-    leaveType: "medical",
-    reason: "Dental appointment and treatment, doctor recommended rest",
-    startDate: "2024-01-18",
-    endDate: "2024-01-19",
-    duration: "2 days",
-    status: "approved",
-    submittedAt: "2024-01-14T08:15:00Z",
-    approvedAt: "2024-01-15T09:00:00Z",
-    approvedBy: "Warden Sharma",
-    emergencyContact: "+91-9876543211",
-    emergencyRelation: "Mother"
-  },
-  {
-    id: "3",
-    studentName: "Amit Patel",
-    studentEmail: "amit@poornima.edu.in",
-    studentPhone: "+91-9876543214",
-    roomNumber: "C-103",
-    leaveType: "academic",
-    reason: "Seminar presentation at another university, academic requirement",
-    startDate: "2024-01-25",
-    endDate: "2024-01-25",
-    duration: "1 day",
-    status: "rejected",
-    submittedAt: "2024-01-13T14:20:00Z",
-    rejectedAt: "2024-01-14T16:45:00Z",
-    rejectedBy: "Warden Sharma",
-    rejectionReason: "Seminar can be attended online, no need for physical absence",
-    emergencyContact: "+91-9876543212",
-    emergencyRelation: "Guardian"
-  },
-  {
-    id: "4",
-    studentName: "Neha Singh",
-    studentEmail: "neha@poornima.edu.in",
-    studentPhone: "+91-9876543215",
-    roomNumber: "A-203",
-    leaveType: "personal",
-    reason: "Sister's wedding, family event",
-    startDate: "2024-01-30",
-    endDate: "2024-02-02",
-    duration: "4 days",
-    status: "pending",
-    submittedAt: "2024-01-15T18:45:00Z",
-    emergencyContact: "+91-9876543213",
-    emergencyRelation: "Sister"
-  },
-  {
-    id: "5",
-    studentName: "Vikram Mehta",
-    studentEmail: "vikram@poornima.edu.in",
-    studentPhone: "+91-9876543216",
-    roomNumber: "B-108",
-    leaveType: "medical",
-    reason: "Eye surgery scheduled, post-operative care required",
-    startDate: "2024-01-22",
-    endDate: "2024-01-26",
-    duration: "5 days",
-    status: "in-progress",
-    submittedAt: "2024-01-12T12:30:00Z",
-    emergencyContact: "+91-9876543214",
-    emergencyRelation: "Father"
-  }
-]
-
 const leaveTypes = [
   { value: "all", label: "All Types", icon: Calendar },
   { value: "personal", label: "Personal", icon: User },
@@ -145,16 +56,53 @@ export default function WardenLeavePage() {
   const [selectedType, setSelectedType] = useState("all")
   const [selectedStatus, setSelectedStatus] = useState("all")
   const [searchQuery, setSearchQuery] = useState("")
+  const [requests, setRequests] = useState<any[]>([])
   const [selectedRequest, setSelectedRequest] = useState<any>(null)
   const [isViewingDetails, setIsViewingDetails] = useState(false)
   const [approvalNote, setApprovalNote] = useState("")
   const [rejectionReason, setRejectionReason] = useState("")
 
-  if (!user || user.role !== "warden") {
-    return null
-  }
+  useEffect(() => {
+    if (!user || user.role !== "warden") return;
 
-  const filteredRequests = mockLeaveRequests.filter(request => {
+    const loadRequests = async () => {
+      try {
+        const response = await fetch("/api/leave-requests", { credentials: "include" })
+        const json = await response.json()
+        if (!response.ok || !json?.success || !Array.isArray(json?.data?.leaveRequests)) return
+
+        setRequests(
+          json.data.leaveRequests.map((request: any) => ({
+            id: request.id,
+            studentName: request.user?.fullName || "Unknown Student",
+            studentEmail: request.user?.email || "",
+            studentPhone: request.user?.phone || "",
+            roomNumber: request.user?.roomNumber || "N/A",
+            leaveType: request.type.toLowerCase(),
+            reason: request.reason,
+            startDate: new Date(request.startDate).toISOString().slice(0, 10),
+            endDate: new Date(request.endDate).toISOString().slice(0, 10),
+            duration: `${Math.max(1, Math.ceil((new Date(request.endDate).getTime() - new Date(request.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1)} days`,
+            status: request.status.toLowerCase(),
+            submittedAt: request.createdAt,
+            approvedAt: request.approvedAt,
+            approvedBy: request.approvedBy || "",
+            rejectedAt: request.approvedAt,
+            rejectedBy: request.approvedBy || "",
+            rejectionReason: request.rejectionReason || "",
+            emergencyContact: request.user?.emergencyContactPhone || "",
+            emergencyRelation: request.user?.emergencyContactName || "",
+          })),
+        )
+      } catch {
+        // keep UI stable
+      }
+    }
+
+    void loadRequests()
+  }, [])
+
+  const filteredRequests = requests.filter(request => {
     const matchesType = selectedType === "all" || request.leaveType === selectedType
     const matchesStatus = selectedStatus === "all" || request.status === selectedStatus
     const matchesSearch = request.studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -163,27 +111,51 @@ export default function WardenLeavePage() {
   })
 
   const getStatusCount = (status: string) => {
-    return mockLeaveRequests.filter(r => r.status === status).length
+    return requests.filter(r => r.status === status).length
   }
 
-  const handleApprove = (requestId: string) => {
-    // In a real app, this would make an API call
-    toast.success("Leave request approved successfully!")
-    setSelectedRequest(null)
-    setIsViewingDetails(false)
-    setApprovalNote("")
+  const handleApprove = async (requestId: string) => {
+    try {
+      const response = await fetch(`/api/leave-requests/${requestId}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ status: "APPROVED" }),
+      })
+      const json = await response.json()
+      if (!response.ok || !json?.success) throw new Error("Approve failed")
+      setRequests((prev) => prev.map((request) => (request.id === requestId ? { ...request, status: "approved" } : request)))
+      toast.success("Leave request approved successfully!")
+      setSelectedRequest(null)
+      setIsViewingDetails(false)
+      setApprovalNote("")
+    } catch {
+      toast.error("Unable to approve leave request")
+    }
   }
 
-  const handleReject = (requestId: string) => {
+  const handleReject = async (requestId: string) => {
     if (!rejectionReason.trim()) {
       toast.error("Please provide a reason for rejection")
       return
     }
-    // In a real app, this would make an API call
-    toast.success("Leave request rejected successfully!")
-    setSelectedRequest(null)
-    setIsViewingDetails(false)
-    setRejectionReason("")
+    try {
+      const response = await fetch(`/api/leave-requests/${requestId}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ status: "REJECTED", rejectionReason }),
+      })
+      const json = await response.json()
+      if (!response.ok || !json?.success) throw new Error("Reject failed")
+      setRequests((prev) => prev.map((request) => (request.id === requestId ? { ...request, status: "rejected" } : request)))
+      toast.success("Leave request rejected successfully!")
+      setSelectedRequest(null)
+      setIsViewingDetails(false)
+      setRejectionReason("")
+    } catch {
+      toast.error("Unable to reject leave request")
+    }
   }
 
   const handleViewDetails = (request: any) => {
@@ -218,7 +190,7 @@ export default function WardenLeavePage() {
               <Calendar className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{mockLeaveRequests.length}</div>
+              <div className="text-2xl font-bold">{requests.length}</div>
             </CardContent>
           </Card>
           

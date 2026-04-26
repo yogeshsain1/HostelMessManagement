@@ -14,21 +14,13 @@ import { DashboardSkeleton } from "@/components/loading-skeleton"
 import { ErrorMessage, LoadingError } from "@/components/error-message"
 import { useRetry } from "@/lib/retry"
 
-// Mock API call that can fail sometimes
 const fetchTodaysMenu = async () => {
-  await new Promise(resolve => setTimeout(resolve, 800))
-  
-  // Simulate occasional failure
-  if (Math.random() > 0.9) {
+  const response = await fetch("/api/mess/menu", { credentials: "include" })
+  const json = await response.json().catch(() => ({}))
+  if (!response.ok || !json?.success || !json?.data?.menu) {
     throw new Error("Failed to load today's menu")
   }
-
-  return {
-    breakfast: { time: "7:00 - 9:00 AM", items: "Idli, Sambar, Coconut Chutney" },
-    lunch: { time: "12:00 - 2:00 PM", items: "Rajasthani Dal Baati, Rice, Vegetable" },
-    snacks: { time: "4:00 - 6:00 PM", items: "Samosa, Tea" },
-    dinner: { time: "7:00 - 9:00 PM", items: "Roti, Paneer Curry, Rice" }
-  }
+  return json.data.menu
 }
 
 export default function DashboardPage() {

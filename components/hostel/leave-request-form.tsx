@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { CheckCircle } from "lucide-react"
 
 export function LeaveRequestForm() {
@@ -15,18 +16,53 @@ export function LeaveRequestForm() {
     startDate: "",
     endDate: "",
     reason: "",
+    destination: "",
+    type: "PERSONAL",
   })
   const [submitted, setSubmitted] = useState(false)
+  const [error, setError] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // In a real app, this would submit to an API
-    console.log("Leave request submitted:", formData)
-    setSubmitted(true)
-    setTimeout(() => {
-      setSubmitted(false)
-      setFormData({ startDate: "", endDate: "", reason: "" })
-    }, 3000)
+
+    if (!formData.startDate || !formData.endDate || !formData.reason) {
+      setError("Please complete all required fields")
+      return
+    }
+
+    setIsSubmitting(true)
+    setError("")
+
+    try {
+      const response = await fetch("/api/leave-requests", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          startDate: formData.startDate,
+          endDate: formData.endDate,
+          reason: formData.reason,
+          destination: formData.destination || undefined,
+          type: formData.type,
+        }),
+      })
+
+      const json = await response.json()
+      if (!response.ok || !json?.success) {
+        throw new Error(json?.error?.message || "Unable to submit leave request")
+      }
+
+      setSubmitted(true)
+      setTimeout(() => {
+        setSubmitted(false)
+        setFormData({ startDate: "", endDate: "", reason: "", destination: "", type: "PERSONAL" })
+      }, 3000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to submit leave request")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleInputChange = (field: string, value: string) => {
@@ -49,6 +85,22 @@ export function LeaveRequestForm() {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-6">
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            <div className="space-y-2">
+              <Label htmlFor="type">Leave Type</Label>
+              <Select value={formData.type} onValueChange={(value) => handleInputChange("type", value)}>
+                <SelectTrigger id="type">
+                  <SelectValue placeholder="Select leave type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PERSONAL">Personal</SelectItem>
+                  <SelectItem value="MEDICAL">Medical</SelectItem>
+                  <SelectItem value="ACADEMIC">Academic</SelectItem>
+                  <SelectItem value="EMERGENCY">Emergency</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="startDate">Start Date</Label>
@@ -74,6 +126,16 @@ export function LeaveRequestForm() {
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="destination">Destination (Optional)</Label>
+              <Input
+                id="destination"
+                placeholder="Where will you be staying?"
+                value={formData.destination}
+                onChange={(e) => handleInputChange("destination", e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="reason">Reason for Leave</Label>
               <Textarea
                 id="reason"
@@ -88,9 +150,9 @@ export function LeaveRequestForm() {
             <Button
               type="submit"
               className="w-full"
-              disabled={!formData.startDate || !formData.endDate || !formData.reason}
+              disabled={!formData.startDate || !formData.endDate || !formData.reason || isSubmitting}
             >
-              Submit Leave Request
+              {isSubmitting ? "Submitting..." : "Submit Leave Request"}
             </Button>
           </form>
         )}

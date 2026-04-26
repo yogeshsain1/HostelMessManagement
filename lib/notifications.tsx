@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { createContext, useContext, useState } from "react"
+import { createContext, useContext, useEffect, useState } from "react"
 
 export interface Notification {
   id: string
@@ -26,42 +26,37 @@ interface NotificationContextType {
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined)
 
-// Mock notifications for demonstration
-const mockNotifications: Notification[] = [
-  {
-    id: "1",
-    title: "Complaint Update",
-    message: "Your AC repair complaint has been marked as in-progress",
-    type: "info",
-    category: "complaint",
-    read: false,
-    createdAt: new Date().toISOString(),
-    actionUrl: "/dashboard/complaints",
-  },
-  {
-    id: "2",
-    title: "Leave Request Approved",
-    message: "Your leave request for Jan 20-25 has been approved",
-    type: "success",
-    category: "leave",
-    read: false,
-    createdAt: new Date().toISOString(),
-    actionUrl: "/dashboard/leave",
-  },
-  {
-    id: "3",
-    title: "Menu Updated",
-    message: "Tomorrow's dinner menu has been updated with new items",
-    type: "info",
-    category: "mess",
-    read: true,
-    createdAt: new Date().toISOString(),
-    actionUrl: "/dashboard/mess",
-  },
-]
-
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
-  const [notifications, setNotifications] = useState<Notification[]>(mockNotifications)
+  const [notifications, setNotifications] = useState<Notification[]>([])
+
+  useEffect(() => {
+    const loadNotifications = async () => {
+      try {
+        const response = await fetch("/api/notifications", { credentials: "include" })
+        const json = await response.json().catch(() => ({}))
+        if (!response.ok || !json?.success || !Array.isArray(json?.data?.notifications)) return
+
+        setNotifications(
+          json.data.notifications.map((item: any) => ({
+            id: String(item.id),
+            title: String(item.title),
+            message: String(item.message),
+            type: (["info", "success", "warning", "error"].includes(item.type) ? item.type : "info") as Notification["type"],
+            category: (["complaint", "leave", "mess", "announcement", "system"].includes(item.category)
+              ? item.category
+              : "system") as Notification["category"],
+            read: Boolean(item.read),
+            createdAt: String(item.createdAt),
+            actionUrl: item.actionUrl ? String(item.actionUrl) : undefined,
+          })),
+        )
+      } catch (_) {
+        setNotifications([])
+      }
+    }
+
+    void loadNotifications()
+  }, [])
 
   const unreadCount = notifications.filter((n) => !n.read).length
 

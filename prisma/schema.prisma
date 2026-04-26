@@ -6,10 +6,105 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../lib/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  STUDENT
+  WARDEN
+  ADMIN
+}
+
+enum ComplaintStatus {
+  PENDING
+  IN_PROGRESS
+  RESOLVED
+}
+
+enum ComplaintPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum LeaveType {
+  PERSONAL
+  MEDICAL
+  ACADEMIC
+  EMERGENCY
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id                    String         @id @default(cuid())
+  email                 String         @unique
+  passwordHash          String
+  fullName              String
+  phone                 String?
+  role                  UserRole       @default(STUDENT)
+  hostelId              String?
+  roomNumber            String?
+  addressLine1          String?
+  addressLine2          String?
+  city                  String?
+  state                 String?
+  postalCode            String?
+  emergencyContactName  String?
+  emergencyContactPhone String?
+  course                String?
+  year                  String?
+  profileImageUrl       String?
+  twoFactorEnabled      Boolean        @default(false)
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  complaints            Complaint[]
+  leaveRequests         LeaveRequest[]
+}
+
+model Complaint {
+  id             String            @id @default(cuid())
+  title          String
+  description    String
+  category       String
+  status         ComplaintStatus   @default(PENDING)
+  priority       ComplaintPriority @default(MEDIUM)
+  assignedTo     String?
+  resolutionNote String?
+  userId         String
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  resolvedAt     DateTime?
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+}
+
+model LeaveRequest {
+  id              String      @id @default(cuid())
+  reason          String
+  type            LeaveType   @default(PERSONAL)
+  startDate       DateTime
+  endDate         DateTime
+  status          LeaveStatus @default(PENDING)
+  destination     String?
+  rejectionReason String?
+  approvedBy      String?
+  approvedAt      DateTime?
+  userId          String
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
 }

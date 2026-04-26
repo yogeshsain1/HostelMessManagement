@@ -1,10 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { QrCode, CheckCircle, Clock, AlertCircle } from "lucide-react"
+import { QrCode, CheckCircle, Clock, AlertCircle, Camera, ImageUp, CameraOff } from "lucide-react"
 
 interface AttendanceRecord {
   date: string
@@ -13,36 +13,150 @@ interface AttendanceRecord {
   time?: string
 }
 
-const mockAttendance: AttendanceRecord[] = [
-  { date: "2024-01-15", mealType: "breakfast", checkedIn: true, time: "08:30 AM" },
-  { date: "2024-01-15", mealType: "lunch", checkedIn: true, time: "12:45 PM" },
-  { date: "2024-01-15", mealType: "dinner", checkedIn: false },
-  { date: "2024-01-14", mealType: "breakfast", checkedIn: true, time: "08:15 AM" },
-  { date: "2024-01-14", mealType: "lunch", checkedIn: true, time: "01:00 PM" },
-  { date: "2024-01-14", mealType: "dinner", checkedIn: true, time: "07:30 PM" },
-]
-
 export function QRScanner() {
   const [isScanning, setIsScanning] = useState(false)
-  const [lastScan, setLastScan] = useState<{ meal: string; time: string } | null>(null)
+  const [scanError, setScanError] = useState("")
+  const [lastScan, setLastScan] = useState<{ meal: string; time: string; date: string; hostelId?: string } | null>(null)
+  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([])
+  const scannerRef = useRef<any>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const scannerElementId = "mess-qr-reader"
 
-  const handleScan = () => {
-    setIsScanning(true)
-    // Simulate QR scan
-    setTimeout(() => {
-      const currentTime = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-      const currentHour = new Date().getHours()
-      let mealType = "breakfast"
+  useEffect(() => {
+    const loadAttendance = async () => {
+      try {
+        const response = await fetch("/api/mess/attendance", { credentials: "include" })
+        const json = await response.json().catch(() => ({}))
+        if (!response.ok || !json?.success || !Array.isArray(json?.data?.attendance)) return
 
-      if (currentHour >= 12 && currentHour < 16) {
-        mealType = "lunch"
-      } else if (currentHour >= 18) {
-        mealType = "dinner"
+        setAttendanceRecords(
+          json.data.attendance.slice(0, 10).map((item: any) => ({
+            date: String(item.date),
+            mealType: item.mealType === "breakfast" || item.mealType === "lunch" || item.mealType === "dinner" ? item.mealType : "dinner",
+            checkedIn: true,
+            time: item.time ? String(item.time) : undefined,
+          })),
+        )
+      } catch (_) {
+        setAttendanceRecords([])
+      }
+    }
+
+    void loadAttendance()
+
+    return () => {
+      void stopScanner()
+    }
+  }, [])
+
+  const handleDecodedText = (decodedText: string) => {
+    try {
+      const parsed = JSON.parse(decodedText)
+      if (parsed?.action !== "mess-attendance" || !parsed?.mealType || !parsed?.date) {
+        setScanError("This QR code is not valid for mess attendance")
+        return
       }
 
-      setLastScan({ meal: mealType, time: currentTime })
+      void fetch("/api/mess/attendance", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          mealType: parsed.mealType,
+          date: parsed.date,
+        }),
+      }).then(async () => {
+        const response = await fetch("/api/mess/attendance", { credentials: "include" })
+        const json = await response.json().catch(() => ({}))
+        if (response.ok && json?.success && Array.isArray(json?.data?.attendance)) {
+          setAttendanceRecords(
+            json.data.attendance.slice(0, 10).map((item: any) => ({
+              date: String(item.date),
+              mealType: item.mealType === "breakfast" || item.mealType === "lunch" || item.mealType === "dinner" ? item.mealType : "dinner",
+              checkedIn: true,
+              time: item.time ? String(item.time) : undefined,
+            })),
+          )
+        }
+      })
+
+      setLastScan({
+        meal: parsed.mealType,
+        date: parsed.date,
+        hostelId: parsed.hostelId,
+        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      })
+      setScanError("")
+    } catch {
+      setScanError("Unable to read this QR code")
+    }
+  }
+
+  const stopScanner = async () => {
+    const scanner = scannerRef.current
+    if (!scanner) return
+
+    try {
+      const state = scanner.getState?.()
+      if (state === 2 || state === 3) {
+        await scanner.stop()
+      }
+      await scanner.clear()
+    } catch (error) {
+      console.error("Failed to stop scanner:", error)
+    } finally {
+      scannerRef.current = null
       setIsScanning(false)
-    }, 2000)
+    }
+  }
+
+  const startScanner = async () => {
+    setScanError("")
+    setLastScan(null)
+
+    try {
+      const { Html5Qrcode } = await import("html5-qrcode")
+      await stopScanner()
+
+      const scanner = new Html5Qrcode(scannerElementId)
+      scannerRef.current = scanner
+      setIsScanning(true)
+
+      await scanner.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: { width: 220, height: 220 } },
+        async (decodedText: string) => {
+          handleDecodedText(decodedText)
+          await stopScanner()
+        },
+        () => {
+          // ignore scan frame errors
+        },
+      )
+    } catch (error) {
+      console.error("Failed to start scanner:", error)
+      setScanError("Camera access failed. Allow camera permission or scan from an image.")
+      setIsScanning(false)
+    }
+  }
+
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setScanError("")
+    try {
+      const { Html5Qrcode } = await import("html5-qrcode")
+      const scanner = new Html5Qrcode(scannerElementId)
+      const decodedText = await scanner.scanFile(file, true)
+      handleDecodedText(decodedText)
+      await scanner.clear()
+    } catch (error) {
+      console.error("Failed to scan image:", error)
+      setScanError("Unable to scan the selected image")
+    } finally {
+      event.target.value = ""
+    }
   }
 
   return (
@@ -56,23 +170,51 @@ export function QRScanner() {
           </CardTitle>
         </CardHeader>
         <CardContent className="text-center space-y-4">
-          <div className="w-48 h-48 mx-auto bg-muted rounded-lg flex items-center justify-center">
+          <div id={scannerElementId} className="w-48 h-48 mx-auto bg-muted rounded-lg flex items-center justify-center overflow-hidden border">
             {isScanning ? (
               <div className="text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-                <p className="text-sm text-muted-foreground">Scanning...</p>
+                <p className="text-sm text-muted-foreground">Opening camera...</p>
               </div>
             ) : (
               <div className="text-center">
                 <QrCode className="h-16 w-16 text-muted-foreground mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">Tap to scan QR code</p>
+                <p className="text-sm text-muted-foreground">Scan admin QR code from camera or image</p>
               </div>
             )}
           </div>
 
-          <Button onClick={handleScan} disabled={isScanning} className="w-full">
-            {isScanning ? "Scanning..." : "Scan QR Code"}
-          </Button>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <Button onClick={isScanning ? stopScanner : startScanner} className="w-full">
+              {isScanning ? (
+                <>
+                  <CameraOff className="h-4 w-4 mr-2" />
+                  Stop Scanner
+                </>
+              ) : (
+                <>
+                  <Camera className="h-4 w-4 mr-2" />
+                  Start Scanner
+                </>
+              )}
+            </Button>
+            <Button onClick={() => fileInputRef.current?.click()} variant="outline" className="w-full bg-transparent">
+              <ImageUp className="h-4 w-4 mr-2" />
+              Scan From Image
+            </Button>
+          </div>
+
+          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+
+          {scanError && (
+            <div className="p-4 bg-red-50 rounded-lg border border-red-200 text-left">
+              <div className="flex items-center space-x-2 text-red-800">
+                <AlertCircle className="h-5 w-5" />
+                <span className="font-medium">Scan Failed</span>
+              </div>
+              <p className="text-sm text-red-700 mt-1">{scanError}</p>
+            </div>
+          )}
 
           {lastScan && (
             <div className="p-4 bg-green-50 rounded-lg border border-green-200">
@@ -83,6 +225,7 @@ export function QRScanner() {
               <p className="text-sm text-green-700 mt-1">
                 {lastScan.meal.charAt(0).toUpperCase() + lastScan.meal.slice(1)} - {lastScan.time}
               </p>
+              <p className="text-xs text-green-700 mt-1">Date: {lastScan.date}</p>
             </div>
           )}
         </CardContent>
@@ -95,7 +238,7 @@ export function QRScanner() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {mockAttendance.map((record, index) => (
+            {attendanceRecords.map((record, index) => (
               <div key={index} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                 <div className="flex items-center space-x-3">
                   <div className="flex items-center space-x-2">

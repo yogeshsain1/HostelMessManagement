@@ -1,0 +1,195 @@
+<html><body style='background:#1e1e1e;color:#d4d4d4;font-family:monospace;font-size:18px;padding:20px;'><h1>app/api/auth/login/route.ts</h1><pre>import { NextResponse } from &quot;next/server&quot;
+import { z } from &quot;zod&quot;
+import bcrypt from &quot;bcryptjs&quot;
+import { badRequest, serverError } from &quot;@/lib/api&quot;
+import { prisma } from &quot;@/lib/prisma&quot;
+import { authCookieName, fromDbRole, signAuthToken } from &quot;@/lib/server-auth&quot;
+
+const LoginSchema = z.object({
+	email: z.string().email(),
+	password: z.string().min(6),
+})
+
+const demoUsers = [
+	{
+		email: &quot;student1@poornima.edu.in&quot;,
+		fullName: &quot;Rahul Kumar&quot;,
+		role: &quot;STUDENT&quot; as const,
+		phone: &quot;+91-9876543212&quot;,
+		hostelId: &quot;1&quot;,
+		roomNumber: &quot;A-101&quot;,
+	},
+	{
+		email: &quot;warden1@poornima.edu.in&quot;,
+		fullName: &quot;Warden Sharma&quot;,
+		role: &quot;WARDEN&quot; as const,
+		phone: &quot;+91-9876543211&quot;,
+		hostelId: &quot;1&quot;,
+	},
+	{
+		email: &quot;admin@poornima.edu.in&quot;,
+		fullName: &quot;Admin User&quot;,
+		role: &quot;ADMIN&quot; as const,
+		phone: &quot;+91-9876543210&quot;,
+	},
+]
+
+const demoPasswordAliases = [&quot;password123&quot;, &quot;Password@123&quot;]
+
+const setAuthCookie = (response: NextResponse, token: string) =&gt; {
+	response.cookies.set(authCookieName, token, {
+		httpOnly: true,
+		secure: process.env.NODE_ENV === &quot;production&quot;,
+		sameSite: &quot;lax&quot;,
+		path: &quot;/&quot;,
+		maxAge: 60 * 60 * 24,
+	})
+}
+
+export async function POST(request: Request) {
+	try {
+		const json = await request.json().catch(() =&gt; ({}))
+		const parsed = LoginSchema.safeParse(json)
+		if (!parsed.success) {
+			return badRequest(&quot;Invalid login payload&quot;, parsed.error.format())
+		}
+
+		const email = parsed.data.email.trim().toLowerCase()
+		const password = parsed.data.password
+		const demoUser = demoUsers.find((entry) =&gt; entry.email === email)
+		const isDemoEmail = Boolean(demoUser)
+		const isAcceptedDemoPassword = demoPasswordAliases.includes(password)
+
+		let activeUser = null as Awaited&lt;ReturnType&lt;typeof prisma.user.findUnique&gt;&gt;
+		try {
+			activeUser = await prisma.user.findUnique({ where: { email } })
+		} catch (err) {
+			const isPrismaInitError =
+				err &amp;&amp;
+				typeof err === &quot;object&quot; &amp;&amp;
+				&quot;name&quot; in err &amp;&amp;
+				typeof (err as { name?: string }).name === &quot;string&quot; &amp;&amp;
+				(err as { name: string }).name.includes(&quot;PrismaClientInitializationError&quot;)
+
+			if (isPrismaInitError &amp;&amp; demoUser &amp;&amp; isAcceptedDemoPassword) {
+				const role = fromDbRole(demoUser.role)
+				const token = signAuthToken({
+					userId: `demo-${role.toLowerCase()}`,
+					email: demoUser.email,
+					role,
+				})
+
+				const response = NextResponse.json({
+					success: true,
+					data: {
+						user: {
+							id: `demo-${role.toLowerCase()}`,
+							email: demoUser.email,
+							fullName: demoUser.fullName,
+							phone: demoUser.phone,
+							role,
+							hostelId: demoUser.hostelId,
+							roomNumber: demoUser.roomNumber,
+							addressLine1: null,
+							addressLine2: null,
+							city: null,
+							state: null,
+							postalCode: null,
+							emergencyContactName: null,
+							emergencyContactPhone: null,
+							course: null,
+							year: null,
+							profileImageUrl: null,
+							twoFactorEnabled: false,
+						},
+					},
+				})
+
+				setAuthCookie(response, token)
+				return response
+			}
+
+			throw err
+		}
+
+		if (!activeUser) {
+			if (!demoUser || !isAcceptedDemoPassword) {
+				return NextResponse.json(
+					{ success: false, error: { code: &quot;INVALID_CREDENTIALS&quot;, message: &quot;Invalid email or password&quot; } },
+					{ status: 401 },
+				)
+			}
+
+			activeUser = await prisma.user.create({
+				data: {
+					email: demoUser.email,
+					passwordHash: await bcrypt.hash(password, 10),
+					fullName: demoUser.fullName,
+					role: demoUser.role,
+					phone: demoUser.phone,
+					hostelId: demoUser.hostelId,
+					roomNumber: demoUser.roomNumber,
+				},
+			})
+		}
+
+		if (!activeUser) {
+			return NextResponse.json(
+				{ success: false, error: { code: &quot;INVALID_CREDENTIALS&quot;, message: &quot;Invalid email or password&quot; } },
+				{ status: 401 },
+			)
+		}
+
+		let isValidPassword = await bcrypt.compare(password, activeUser.passwordHash)
+		if (!isValidPassword &amp;&amp; isDemoEmail &amp;&amp; isAcceptedDemoPassword) {
+			activeUser = await prisma.user.update({
+				where: { id: activeUser.id },
+				data: { passwordHash: await bcrypt.hash(password, 10) },
+			})
+			isValidPassword = true
+		}
+
+		if (!isValidPassword) {
+			return NextResponse.json(
+				{ success: false, error: { code: &quot;INVALID_CREDENTIALS&quot;, message: &quot;Invalid email or password&quot; } },
+				{ status: 401 },
+			)
+		}
+
+		const role = fromDbRole(activeUser.role)
+		const token = signAuthToken({ userId: activeUser.id, email: activeUser.email, role })
+
+		const response = NextResponse.json({
+			success: true,
+			data: {
+				user: {
+					id: activeUser.id,
+					email: activeUser.email,
+					fullName: activeUser.fullName,
+					phone: activeUser.phone,
+					role,
+					hostelId: activeUser.hostelId,
+					roomNumber: activeUser.roomNumber,
+					addressLine1: activeUser.addressLine1,
+					addressLine2: activeUser.addressLine2,
+					city: activeUser.city,
+					state: activeUser.state,
+					postalCode: activeUser.postalCode,
+					emergencyContactName: activeUser.emergencyContactName,
+					emergencyContactPhone: activeUser.emergencyContactPhone,
+					course: activeUser.course,
+					year: activeUser.year,
+					profileImageUrl: activeUser.profileImageUrl,
+					twoFactorEnabled: activeUser.twoFactorEnabled,
+				},
+			},
+		})
+
+		setAuthCookie(response, token)
+
+		return response
+	} catch (err) {
+		return serverError(&quot;Login failed&quot;, err)
+	}
+}
+</pre></body></html>
