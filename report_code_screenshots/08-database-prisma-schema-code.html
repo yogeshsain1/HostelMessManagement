@@ -1,0 +1,111 @@
+<html><body style='background:#1e1e1e;color:#d4d4d4;font-family:monospace;font-size:18px;padding:20px;'><h1>prisma/schema.prisma</h1><pre>// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = &quot;prisma-client-js&quot;
+}
+
+datasource db {
+  provider = &quot;postgresql&quot;
+  url      = env(&quot;DATABASE_URL&quot;)
+}
+
+enum UserRole {
+  STUDENT
+  WARDEN
+  ADMIN
+}
+
+enum ComplaintStatus {
+  PENDING
+  IN_PROGRESS
+  RESOLVED
+}
+
+enum ComplaintPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum LeaveType {
+  PERSONAL
+  MEDICAL
+  ACADEMIC
+  EMERGENCY
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id                    String         @id @default(cuid())
+  email                 String         @unique
+  passwordHash          String
+  fullName              String
+  phone                 String?
+  role                  UserRole       @default(STUDENT)
+  hostelId              String?
+  roomNumber            String?
+  addressLine1          String?
+  addressLine2          String?
+  city                  String?
+  state                 String?
+  postalCode            String?
+  emergencyContactName  String?
+  emergencyContactPhone String?
+  course                String?
+  year                  String?
+  profileImageUrl       String?
+  twoFactorEnabled      Boolean        @default(false)
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  complaints            Complaint[]
+  leaveRequests         LeaveRequest[]
+}
+
+model Complaint {
+  id             String            @id @default(cuid())
+  title          String
+  description    String
+  category       String
+  status         ComplaintStatus   @default(PENDING)
+  priority       ComplaintPriority @default(MEDIUM)
+  assignedTo     String?
+  resolutionNote String?
+  userId         String
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  resolvedAt     DateTime?
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+}
+
+model LeaveRequest {
+  id              String      @id @default(cuid())
+  reason          String
+  type            LeaveType   @default(PERSONAL)
+  startDate       DateTime
+  endDate         DateTime
+  status          LeaveStatus @default(PENDING)
+  destination     String?
+  rejectionReason String?
+  approvedBy      String?
+  approvedAt      DateTime?
+  userId          String
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+}
+</pre></body></html>

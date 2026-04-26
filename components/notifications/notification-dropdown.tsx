@@ -23,7 +23,15 @@ export function NotificationDropdown() {
 
   // WebSocket connection for real-time notifications
   useEffect(() => {
-    const socket = io("http://localhost:4001") // Change to your backend WebSocket URL
+    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL
+    if (!socketUrl) return
+
+    const socket = io(socketUrl, {
+      transports: ["websocket"],
+      reconnectionAttempts: 2,
+      timeout: 3000,
+    })
+
     socket.on("notification", (data) => {
       addNotification({
         title: data.title,
@@ -33,6 +41,7 @@ export function NotificationDropdown() {
         actionUrl: data.actionUrl,
       })
     })
+
     return () => {
       socket.disconnect()
     }

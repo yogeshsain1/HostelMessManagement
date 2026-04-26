@@ -11,55 +11,43 @@ import { Users, UserPlus, Search, Mail, Phone, MapPin } from "lucide-react"
 import { TableSkeleton } from "@/components/loading-skeleton"
 import { EmptyState } from "@/components/error-message"
 
-const mockUsers = [
-  {
-    id: "1",
-    fullName: "Alice Student",
-    email: "alice@hostel.com",
-    phone: "+1234567890",
-    role: "student",
-    hostelName: "Sunrise Hostel",
-    roomNumber: "A101",
-    status: "active",
-    joinedDate: "2024-01-01",
-  },
-  {
-    id: "2",
-    fullName: "Bob Student",
-    email: "bob@hostel.com",
-    phone: "+1234567891",
-    role: "student",
-    hostelName: "Sunrise Hostel",
-    roomNumber: "A102",
-    status: "active",
-    joinedDate: "2024-01-02",
-  },
-  {
-    id: "3",
-    fullName: "John Warden",
-    email: "warden1@hostel.com",
-    phone: "+1234567892",
-    role: "warden",
-    hostelName: "Sunrise Hostel",
-    roomNumber: null,
-    status: "active",
-    joinedDate: "2023-12-01",
-  },
-]
+type UserListItem = {
+  id: string
+  fullName: string
+  email: string
+  phone?: string | null
+  role: "student" | "warden" | "admin"
+  hostelId?: string | null
+  roomNumber?: string | null
+}
 
 export default function AdminUsersPage() {
   const [loading, setLoading] = useState(true)
+  const [users, setUsers] = useState<UserListItem[]>([])
 
   useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 600)
-    return () => clearTimeout(t)
+    const loadUsers = async () => {
+      try {
+        const response = await fetch("/api/users", { credentials: "include" })
+        const json = await response.json().catch(() => ({}))
+        if (response.ok && json?.success && Array.isArray(json?.data?.users)) {
+          setUsers(json.data.users)
+        }
+      } catch (_) {
+        setUsers([])
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    void loadUsers()
   }, [])
 
   const stats = {
-    total: mockUsers.length,
-    students: mockUsers.filter((u) => u.role === "student").length,
-    wardens: mockUsers.filter((u) => u.role === "warden").length,
-    admins: mockUsers.filter((u) => u.role === "admin").length,
+    total: users.length,
+    students: users.filter((u) => u.role === "student").length,
+    wardens: users.filter((u) => u.role === "warden").length,
+    admins: users.filter((u) => u.role === "admin").length,
   }
 
   const getRoleBadgeColor = (role: string) => {
@@ -152,11 +140,11 @@ export default function AdminUsersPage() {
         </Card>
 
         {/* Users List */}
-        {mockUsers.length === 0 ? (
+        {users.length === 0 ? (
           <EmptyState title="No users found" description="Start by adding a new user to the system." action={<Button><UserPlus className="h-4 w-4 mr-2" />Add User</Button>} />
         ) : (
           <div className="grid gap-4">
-            {mockUsers.map((user) => (
+            {users.map((user) => (
               <Card key={user.id}>
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
@@ -194,7 +182,7 @@ export default function AdminUsersPage() {
                     <div className="flex items-center space-x-2">
                       <Badge className={getRoleBadgeColor(user.role)}>{user.role}</Badge>
                       <Badge variant="outline" className="text-green-600 border-green-200">
-                        {user.status}
+                        active
                       </Badge>
                       <Button variant="outline" size="sm">
                         Edit

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useAuth } from "@/lib/auth"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -22,62 +22,40 @@ import Link from "next/link"
 export default function ComplaintsPage() {
   const { user } = useAuth()
   const [filter, setFilter] = useState<"all" | "pending" | "resolved">("all")
+  const [complaints, setComplaints] = useState<any[]>([])
+
+  useEffect(() => {
+    if (!user) return;
+    
+    const loadComplaints = async () => {
+      try {
+        const response = await fetch("/api/complaints?mine=true", { credentials: "include" })
+        const json = await response.json()
+        if (!response.ok || !json?.success || !Array.isArray(json?.data?.complaints)) return
+
+        setComplaints(
+          json.data.complaints.map((complaint: any) => ({
+            id: complaint.id,
+            title: complaint.title,
+            description: complaint.description,
+            category: complaint.category,
+            status: complaint.status.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (char: string) => char.toUpperCase()),
+            priority: complaint.priority.toLowerCase().replace(/\b\w/g, (char: string) => char.toUpperCase()),
+            submittedDate: new Date(complaint.createdAt).toISOString().slice(0, 10),
+            lastUpdated: new Date(complaint.updatedAt).toISOString().slice(0, 10),
+            assignedTo: complaint.assignedTo || "Unassigned",
+            roomNumber: complaint.user?.roomNumber || "N/A",
+          })),
+        )
+      } catch (_) {}
+    }
+
+    void loadComplaints()
+  }, [user])
 
   if (!user) {
     return null
   }
-
-  // Mock complaints data
-  const mockComplaints = [
-    {
-      id: 1,
-      title: "Water issue in bathroom",
-      description: "Water is not flowing properly in the bathroom. The tap seems to be clogged.",
-      category: "Plumbing",
-      status: "In Progress",
-      priority: "Medium",
-      submittedDate: "2024-01-15",
-      lastUpdated: "2024-01-16",
-      assignedTo: "Maintenance Team",
-      roomNumber: "A-101"
-    },
-    {
-      id: 2,
-      title: "WiFi connectivity problem",
-      description: "WiFi signal is very weak in my room. Can barely connect to the network.",
-      category: "Internet",
-      status: "Pending",
-      priority: "High",
-      submittedDate: "2024-01-14",
-      lastUpdated: "2024-01-14",
-      assignedTo: "IT Support",
-      roomNumber: "A-101"
-    },
-    {
-      id: 3,
-      title: "Electricity fluctuation",
-      description: "Experiencing frequent power cuts and voltage fluctuations in the room.",
-      category: "Electrical",
-      status: "Resolved",
-      priority: "High",
-      submittedDate: "2024-01-10",
-      lastUpdated: "2024-01-12",
-      assignedTo: "Electrical Team",
-      roomNumber: "A-101"
-    },
-    {
-      id: 4,
-      title: "Cleaning service required",
-      description: "Room needs deep cleaning service. Regular cleaning is not sufficient.",
-      category: "Housekeeping",
-      status: "Resolved",
-      priority: "Low",
-      submittedDate: "2024-01-08",
-      lastUpdated: "2024-01-09",
-      assignedTo: "Housekeeping",
-      roomNumber: "A-101"
-    }
-  ]
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
@@ -118,16 +96,16 @@ export default function ComplaintsPage() {
     }
   }
 
-  const filteredComplaints = mockComplaints.filter(complaint => {
+  const filteredComplaints = complaints.filter(complaint => {
     if (filter === "all") return true
     return complaint.status.toLowerCase() === filter
   })
 
   const stats = {
-    total: mockComplaints.length,
-    pending: mockComplaints.filter(c => c.status === "Pending").length,
-    inProgress: mockComplaints.filter(c => c.status === "In Progress").length,
-    resolved: mockComplaints.filter(c => c.status === "Resolved").length
+    total: complaints.length,
+    pending: complaints.filter(c => c.status === "Pending").length,
+    inProgress: complaints.filter(c => c.status === "In Progress").length,
+    resolved: complaints.filter(c => c.status === "Resolved").length
   }
 
   return (

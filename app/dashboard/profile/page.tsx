@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useAuth } from "@/lib/auth"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -26,7 +26,7 @@ import {
 import { toast } from "sonner"
 
 export default function ProfilePage() {
-  const { user } = useAuth()
+  const { user, updateProfile } = useAuth()
   const [isEditing, setIsEditing] = useState(false)
   const [editedUser, setEditedUser] = useState({
     email: user?.email || "",
@@ -45,6 +45,25 @@ export default function ProfilePage() {
   const [pwd, setPwd] = useState({ currentPassword: "", newPassword: "", confirm: "" })
   const [twoFAEnabled, setTwoFAEnabled] = useState<boolean>(user?.twoFactorEnabled ?? false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+
+  useEffect(() => {
+    if (!user) return
+    setEditedUser({
+      email: user.email,
+      phone: user.phone || "",
+      addressLine1: user.addressLine1 || "",
+      addressLine2: user.addressLine2 || "",
+      city: user.city || "",
+      state: user.state || "",
+      postalCode: user.postalCode || "",
+      emergencyContactName: user.emergencyContactName || "",
+      emergencyContactPhone: user.emergencyContactPhone || "",
+      course: user.course || "",
+      year: user.year || "",
+      profileImageUrl: user.profileImageUrl || "",
+    })
+    setTwoFAEnabled(user.twoFactorEnabled ?? false)
+  }, [user])
 
   if (!user) {
     return null
@@ -88,9 +107,8 @@ export default function ProfilePage() {
 
   const handleSave = async () => {
     try {
-      const res = await fetch("/api/users", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(editedUser) })
-      const json = await res.json()
-      if (!res.ok || json?.success === false) throw new Error("Failed to update")
+      const updated = await updateProfile(editedUser)
+      if (!updated) throw new Error("Failed to update")
       toast.success("Profile updated successfully!")
       setIsEditing(false)
     } catch (e) {
@@ -122,7 +140,7 @@ export default function ProfilePage() {
       return
     }
     try {
-      const res = await fetch("/api/users?action=change-password", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ currentPassword: pwd.currentPassword, newPassword: pwd.newPassword }) })
+      const res = await fetch("/api/users/profile", { method: "POST", headers: { "content-type": "application/json" }, credentials: "include", body: JSON.stringify({ action: "change-password", currentPassword: pwd.currentPassword, newPassword: pwd.newPassword }) })
       const json = await res.json()
       if (!res.ok || json?.success === false) throw new Error("Change failed")
       toast.success("Password changed")
@@ -134,7 +152,7 @@ export default function ProfilePage() {
 
   const handleSetup2FA = async () => {
     try {
-      const res = await fetch("/api/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "setup-2fa" }) })
+      const res = await fetch("/api/auth", { method: "POST", headers: { "content-type": "application/json" }, credentials: "include", body: JSON.stringify({ action: "setup-2fa" }) })
       const json = await res.json()
       if (!res.ok || json?.success === false) throw new Error("2FA setup failed")
       toast.message("2FA Setup", { description: "Use your authenticator app to add the provided secret." })
@@ -145,7 +163,7 @@ export default function ProfilePage() {
 
   const handleVerify2FA = async (token: string) => {
     try {
-      const res = await fetch("/api/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "verify-2fa", token }) })
+      const res = await fetch("/api/auth", { method: "POST", headers: { "content-type": "application/json" }, credentials: "include", body: JSON.stringify({ action: "verify-2fa", token }) })
       const json = await res.json()
       if (!res.ok || json?.success === false) throw new Error("2FA verify failed")
       setTwoFAEnabled(true)

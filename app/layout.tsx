@@ -88,7 +88,7 @@ export default function RootLayout({
                       {children}
                     </div>
                     <footer className="w-full text-center text-xs text-muted-foreground py-4 bg-background/80 border-t border-border/20">
-                      This is a demo project for educational purposes, not an official Poornima University system.
+                      Demo project for educational purposes only. Not an official Poornima University system.
                     </footer>
                   </div>
                 </Suspense>

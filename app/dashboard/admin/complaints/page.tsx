@@ -9,60 +9,64 @@ import { AlertTriangle, CheckCircle, Clock } from "lucide-react"
 import { DashboardSkeleton, CardsSkeleton } from "@/components/loading-skeleton"
 import { EmptyState } from "@/components/error-message"
 
-const mockComplaints = [
-  {
-    id: "1",
-    title: "Broken AC in Room A101",
-    description: "The air conditioner is not working properly and making loud noises.",
-    category: "maintenance" as const,
-    status: "pending" as const,
-    priority: "high" as const,
-    studentName: "Alice Student",
-    roomNumber: "A101",
-    createdAt: "2024-01-10",
-  },
-  {
-    id: "2",
-    title: "Bathroom Cleaning Issue",
-    description: "Common bathroom on 1st floor needs thorough cleaning.",
-    category: "cleanliness" as const,
-    status: "in-progress" as const,
-    priority: "medium" as const,
-    studentName: "Bob Student",
-    roomNumber: "A102",
-    createdAt: "2024-01-08",
-  },
-  {
-    id: "3",
-    title: "WiFi Connection Problems",
-    description: "Internet connectivity is poor in evening hours.",
-    category: "other" as const,
-    status: "resolved" as const,
-    priority: "medium" as const,
-    studentName: "Charlie Student",
-    roomNumber: "B201",
-    createdAt: "2024-01-05",
-  },
-]
-
 export default function AdminComplaintsPage() {
-  const [complaints, setComplaints] = useState(mockComplaints)
+  const [complaints, setComplaints] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 700)
-    return () => clearTimeout(t)
+    const loadComplaints = async () => {
+      try {
+        const response = await fetch("/api/complaints", { credentials: "include" })
+        const json = await response.json()
+        if (!response.ok || !json?.success || !Array.isArray(json?.data?.complaints)) return
+
+        setComplaints(
+          json.data.complaints.map((complaint: any) => ({
+            id: complaint.id,
+            title: complaint.title,
+            description: complaint.description,
+            category: complaint.category,
+            status: complaint.status.toLowerCase().replaceAll("_", "-") as "pending" | "in-progress" | "resolved" | "rejected",
+            priority: complaint.priority.toLowerCase() as "low" | "medium" | "high" | "urgent",
+            studentName: complaint.user?.fullName || "Unknown Student",
+            roomNumber: complaint.user?.roomNumber || "N/A",
+            createdAt: new Date(complaint.createdAt).toISOString().slice(0, 10),
+          })),
+        )
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    void loadComplaints()
   }, [])
 
-  const handleUpdateComplaint = (id: string, status: string, response?: string) => {
-    setComplaints((prev) =>
-      prev.map((complaint) =>
-        complaint.id === id
-          ? { ...complaint, status: status as any, updatedAt: new Date().toISOString().split("T")[0] }
-          : complaint,
-      ),
-    )
-    console.log("Updated complaint:", { id, status, response })
+  const handleUpdateComplaint = async (id: string, status: string, response?: string) => {
+    try {
+      const backendStatus = status.toUpperCase().replace("-", "_")
+      const requestBody = {
+        status: backendStatus,
+        resolutionNote: response || undefined,
+      }
+
+      const res = await fetch(`/api/complaints/${id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(requestBody),
+      })
+
+      const json = await res.json()
+      if (!res.ok || !json?.success) throw new Error("Failed to update complaint")
+
+      setComplaints((prev) =>
+        prev.map((complaint) =>
+          complaint.id === id ? { ...complaint, status: status as any } : complaint,
+        ),
+      )
+    } catch (_) {
+      // keep UI stable; data can be refreshed on next load
+    }
   }
 
   const getComplaintsByStatus = (status: string) => {

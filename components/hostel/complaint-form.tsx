@@ -12,30 +12,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CheckCircle } from "lucide-react"
 import { FormError, SuccessMessage, InlineError } from "@/components/error-message"
 import { LoadingSpinner } from "@/components/loading-skeleton"
-import { useRetry } from "@/lib/retry"
-
-// Mock API call that can fail
-const submitComplaint = async (data: any) => {
-  await new Promise(resolve => setTimeout(resolve, 2000))
-  
-  // Simulate validation errors
-  if (!data.title.trim()) {
-    throw new Error("Title is required")
-  }
-  if (!data.description.trim()) {
-    throw new Error("Description is required")
-  }
-  if (data.description.length < 10) {
-    throw new Error("Description must be at least 10 characters long")
-  }
-  
-  // Simulate network failure
-  if (Math.random() > 0.8) {
-    throw new Error("Network error: Unable to submit complaint. Please try again.")
-  }
-  
-  return { success: true, id: Date.now().toString() }
-}
 
 export function ComplaintForm() {
   const [formData, setFormData] = useState({
@@ -47,11 +23,8 @@ export function ComplaintForm() {
   const [submitted, setSubmitted] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
-  const {
-    execute: handleSubmitComplaint,
-    isLoading: isSubmitting,
-    error: submitError
-  } = useRetry(submitComplaint, { maxAttempts: 2 })
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<Error | null>(null)
 
   const validateField = (field: string, value: string) => {
     const errors = { ...fieldErrors }
@@ -97,8 +70,7 @@ export function ComplaintForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    // Validate all fields
+
     const isValid = Object.entries(formData).every(([field, value]) => 
       validateField(field, value)
     )
@@ -106,7 +78,26 @@ export function ComplaintForm() {
     if (!isValid) return
     
     try {
-      await handleSubmitComplaint(formData)
+      setIsSubmitting(true)
+      setSubmitError(null)
+
+      const response = await fetch("/api/complaints", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          title: formData.title,
+          description: formData.description,
+          category: formData.category,
+          priority: formData.priority.toUpperCase(),
+        }),
+      })
+
+      const json = await response.json()
+      if (!response.ok || !json?.success) {
+        throw new Error(json?.error?.message || "Unable to submit complaint")
+      }
+
       setSubmitted(true)
       setFormData({ title: "", description: "", category: "", priority: "" })
       setFieldErrors({})
@@ -114,7 +105,9 @@ export function ComplaintForm() {
       // Reset success message after 5 seconds
       setTimeout(() => setSubmitted(false), 5000)
     } catch (error) {
-      console.error("Failed to submit complaint:", error)
+      setSubmitError(error instanceof Error ? error : new Error("Failed to submit complaint"))
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -154,7 +147,7 @@ export function ComplaintForm() {
             {submitError && (
               <FormError 
                 message={submitError.message}
-                onDismiss={() => window.location.reload()}
+                onDismiss={() => setSubmitError(null)}
               />
             )}
             

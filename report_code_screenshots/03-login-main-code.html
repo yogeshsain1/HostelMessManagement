@@ -1,0 +1,122 @@
+﻿<html><body style='background:#1e1e1e;color:#d4d4d4;font-family:monospace;font-size:18px;padding:20px;'><h1>app/login/page.tsx</h1><pre>
+
+&quot;use client&quot;
+
+import { useRef } from &quot;react&quot;
+import Image from &quot;next/image&quot;
+import { gsap } from &quot;gsap&quot;
+import { useGSAP } from &quot;@gsap/react&quot;
+import { LoginForm } from &quot;@/components/auth/login-form&quot;
+
+export default function LoginPage() {
+  const shellRef = useRef&lt;HTMLDivElement | null&gt;(null)
+  const panelRef = useRef&lt;HTMLDivElement | null&gt;(null)
+  const glowARef = useRef&lt;HTMLDivElement | null&gt;(null)
+  const glowBRef = useRef&lt;HTMLDivElement | null&gt;(null)
+  const glowCRef = useRef&lt;HTMLDivElement | null&gt;(null)
+
+  useGSAP(
+    () =&gt; {
+      const tl = gsap.timeline({ defaults: { ease: &quot;power3.out&quot; } })
+
+      tl.fromTo(
+        panelRef.current,
+        { opacity: 0, y: 36, rotateX: 12, transformPerspective: 1200 },
+        { opacity: 1, y: 0, rotateX: 0, duration: 1 }
+      )
+        .fromTo(
+          shellRef.current?.querySelectorAll(&quot;[data-login-animate]&quot;),
+          { opacity: 0, y: 24 },
+          { opacity: 1, y: 0, duration: 0.8, stagger: 0.12 },
+          &quot;-=0.55&quot;
+        )
+        .to(glowARef.current, { x: 24, y: -18, duration: 8, yoyo: true, repeat: -1, ease: &quot;sine.inOut&quot; }, 0)
+        .to(glowBRef.current, { x: -18, y: 22, duration: 10, yoyo: true, repeat: -1, ease: &quot;sine.inOut&quot; }, 0)
+        .to(glowCRef.current, { x: 16, y: -12, duration: 9, yoyo: true, repeat: -1, ease: &quot;sine.inOut&quot; }, 0)
+    },
+    { scope: shellRef }
+  )
+
+  return (
+    &lt;div ref={shellRef} className=&quot;relative min-h-screen overflow-hidden bg-[#07111f] text-white&quot;&gt;
+      &lt;div className=&quot;absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(65,105,225,0.24),_transparent_34%),radial-gradient(circle_at_top_right,_rgba(31,199,157,0.18),_transparent_28%),linear-gradient(135deg,_#07111f_0%,_#0b1f33_45%,_#060b14_100%)]&quot; /&gt;
+      &lt;div className=&quot;absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:56px_56px] opacity-25&quot; /&gt;
+      &lt;div ref={glowARef} className=&quot;absolute left-[-5rem] top-20 h-72 w-72 rounded-full bg-cyan-400/25 blur-3xl&quot; /&gt;
+      &lt;div ref={glowBRef} className=&quot;absolute right-[-4rem] top-12 h-96 w-96 rounded-full bg-indigo-500/25 blur-3xl&quot; /&gt;
+      &lt;div ref={glowCRef} className=&quot;absolute bottom-[-6rem] left-1/3 h-80 w-80 rounded-full bg-emerald-400/20 blur-3xl&quot; /&gt;
+
+      &lt;div className=&quot;relative mx-auto flex min-h-screen w-full max-w-7xl items-center px-4 py-8 sm:px-6 lg:px-8&quot;&gt;
+        &lt;div className=&quot;grid w-full items-center gap-8 lg:grid-cols-[1.05fr_0.95fr]&quot;&gt;
+          &lt;div className=&quot;hidden lg:block&quot;&gt;
+            &lt;div className=&quot;max-w-xl space-y-8&quot;&gt;
+              &lt;div data-login-animate className=&quot;inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/6 px-4 py-2 text-sm text-white/80 backdrop-blur-xl&quot;&gt;
+                &lt;span className=&quot;h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_18px_rgba(74,222,128,0.85)]&quot; /&gt;
+                Hostel operations, reimagined
+              &lt;/div&gt;
+
+              &lt;div data-login-animate className=&quot;space-y-5&quot;&gt;
+                &lt;h1 className=&quot;text-5xl font-black tracking-tight text-white sm:text-6xl lg:text-7xl&quot;&gt;
+                  Poornima Hostel
+                  &lt;span className=&quot;block bg-gradient-to-r from-cyan-300 via-white to-emerald-300 bg-clip-text text-transparent&quot;&gt;
+                    Management System
+                  &lt;/span&gt;
+                &lt;/h1&gt;
+                &lt;p className=&quot;max-w-lg text-lg leading-8 text-white/70&quot;&gt;
+                  A fast, modern control room for students, wardens, and admins to handle complaints, leave, mess, and notifications in one place.
+                &lt;/p&gt;
+              &lt;/div&gt;
+
+              &lt;div data-login-animate className=&quot;flex items-center gap-4 rounded-3xl border border-white/10 bg-white/8 p-4 backdrop-blur-xl shadow-[0_30px_90px_rgba(0,0,0,0.24)]&quot;&gt;
+                &lt;div className=&quot;flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-white/10&quot;&gt;
+                  &lt;Image
+                    src=&quot;/images/poornima-logo.png&quot;
+                    alt=&quot;Poornima University&quot;
+                    width={44}
+                    height={44}
+                    priority
+                  /&gt;
+                &lt;/div&gt;
+                &lt;div&gt;
+                  &lt;div className=&quot;text-sm uppercase tracking-[0.24em] text-white/50&quot;&gt;Secure portal&lt;/div&gt;
+                  &lt;div className=&quot;text-base font-medium text-white/90&quot;&gt;Designed for daily hostel operations&lt;/div&gt;
+                &lt;/div&gt;
+              &lt;/div&gt;
+            &lt;/div&gt;
+          &lt;/div&gt;
+
+          &lt;div ref={panelRef} className=&quot;mx-auto w-full max-w-lg&quot;&gt;
+            &lt;div data-login-animate className=&quot;mb-6 flex items-center justify-center lg:hidden&quot;&gt;
+              &lt;div className=&quot;flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-white/10 shadow-2xl backdrop-blur-xl&quot;&gt;
+                &lt;Image
+                  src=&quot;/images/poornima-logo.png&quot;
+                  alt=&quot;Poornima University&quot;
+                  width={42}
+                  height={42}
+                  priority
+                /&gt;
+              &lt;/div&gt;
+            &lt;/div&gt;
+
+            &lt;div data-login-animate className=&quot;mb-6 text-center lg:text-left&quot;&gt;
+              &lt;div className=&quot;mb-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/6 px-3 py-1 text-xs font-medium uppercase tracking-[0.24em] text-white/65 backdrop-blur-xl lg:hidden&quot;&gt;
+                Hostel management portal
+              &lt;/div&gt;
+              &lt;h2 className=&quot;text-3xl font-bold text-white sm:text-4xl&quot;&gt;Welcome back&lt;/h2&gt;
+              &lt;p className=&quot;mt-2 text-sm text-white/65 sm:text-base&quot;&gt;
+                Sign in to manage your hostel services and notices.
+              &lt;/p&gt;
+            &lt;/div&gt;
+
+            &lt;div className=&quot;relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/8 p-2 shadow-[0_30px_120px_rgba(0,0,0,0.4)] backdrop-blur-2xl&quot;&gt;
+              &lt;div className=&quot;absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300/80 to-transparent&quot; /&gt;
+              &lt;div className=&quot;rounded-[1.6rem] border border-white/10 bg-[#0b1222]/90 p-4 sm:p-5&quot;&gt;
+                &lt;LoginForm /&gt;
+              &lt;/div&gt;
+            &lt;/div&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  )
+}
+</pre></body></html>

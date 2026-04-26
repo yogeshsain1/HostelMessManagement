@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useAuth } from "@/lib/auth"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -30,80 +30,6 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 
-// Mock data for warden complaints
-const mockComplaints = [
-  {
-    id: "1",
-    studentName: "Rahul Kumar",
-    studentEmail: "rahul@poornima.edu.in",
-    studentPhone: "+91-9876543212",
-    roomNumber: "A-101",
-    title: "WiFi connectivity issues in Block A",
-    description: "WiFi signal is very weak in my room and the common area. Unable to attend online classes properly.",
-    category: "maintenance",
-    priority: "high",
-    status: "pending",
-    createdAt: "2024-01-15T10:30:00Z",
-    updatedAt: "2024-01-15T10:30:00Z"
-  },
-  {
-    id: "2",
-    studentName: "Priya Sharma",
-    studentEmail: "priya@poornima.edu.in",
-    studentPhone: "+91-9876543213",
-    roomNumber: "B-205",
-    title: "Water supply problem in bathroom",
-    description: "No water supply in the bathroom since yesterday morning. Need immediate attention.",
-    category: "maintenance",
-    priority: "urgent",
-    status: "in-progress",
-    createdAt: "2024-01-14T08:15:00Z",
-    updatedAt: "2024-01-15T09:00:00Z"
-  },
-  {
-    id: "3",
-    studentName: "Amit Patel",
-    studentEmail: "amit@poornima.edu.in",
-    studentPhone: "+91-9876543214",
-    roomNumber: "C-103",
-    title: "Cleaning schedule not followed",
-    description: "Common areas are not being cleaned regularly. Dust accumulation in corridors and staircases.",
-    category: "cleanliness",
-    priority: "medium",
-    status: "resolved",
-    createdAt: "2024-01-12T14:20:00Z",
-    updatedAt: "2024-01-14T16:45:00Z"
-  },
-  {
-    id: "4",
-    studentName: "Neha Singh",
-    studentEmail: "neha@poornima.edu.in",
-    studentPhone: "+91-9876543215",
-    roomNumber: "A-203",
-    title: "Security concern - unauthorized entry",
-    description: "Saw someone trying to enter the hostel without proper identification. Security staff was not present.",
-    category: "security",
-    priority: "high",
-    status: "pending",
-    createdAt: "2024-01-15T18:45:00Z",
-    updatedAt: "2024-01-15T18:45:00Z"
-  },
-  {
-    id: "5",
-    studentName: "Vikram Mehta",
-    studentEmail: "vikram@poornima.edu.in",
-    studentPhone: "+91-9876543216",
-    roomNumber: "B-108",
-    title: "Mess food quality complaint",
-    description: "Food quality has deteriorated in the last week. Vegetables are not fresh and taste is poor.",
-    category: "food",
-    priority: "medium",
-    status: "in-progress",
-    createdAt: "2024-01-13T12:30:00Z",
-    updatedAt: "2024-01-15T11:20:00Z"
-  }
-]
-
 const complaintCategories = [
   { value: "all", label: "All Categories", icon: MessageSquare },
   { value: "maintenance", label: "Maintenance", icon: Building },
@@ -131,16 +57,46 @@ export default function WardenComplaintsPage() {
   const { user } = useAuth()
   const [selectedCategory, setSelectedCategory] = useState("all")
   const [searchQuery, setSearchQuery] = useState("")
+  const [complaints, setComplaints] = useState<any[]>([])
   const [selectedComplaint, setSelectedComplaint] = useState<any>(null)
   const [isViewingDetails, setIsViewingDetails] = useState(false)
   const [resolutionNote, setResolutionNote] = useState("")
   const [selectedStatus, setSelectedStatus] = useState("")
 
-  if (!user || user.role !== "warden") {
-    return null
-  }
+  useEffect(() => {
+    if (!user || user.role !== "warden") return;
+    
+    const loadComplaints = async () => {
+      try {
+        const response = await fetch("/api/complaints", { credentials: "include" })
+        const json = await response.json()
+        if (!response.ok || !json?.success || !Array.isArray(json?.data?.complaints)) return
 
-  const filteredComplaints = mockComplaints.filter(complaint => {
+        setComplaints(
+          json.data.complaints.map((complaint: any) => ({
+            id: complaint.id,
+            studentName: complaint.user?.fullName || "Unknown Student",
+            studentEmail: complaint.user?.email || "",
+            studentPhone: complaint.user?.phone || "",
+            roomNumber: complaint.user?.roomNumber || "N/A",
+            title: complaint.title,
+            description: complaint.description,
+            category: complaint.category,
+            priority: complaint.priority.toLowerCase(),
+            status: complaint.status.toLowerCase().replaceAll("_", "-"),
+            createdAt: complaint.createdAt,
+            updatedAt: complaint.updatedAt,
+          })),
+        )
+      } catch {
+        // keep UI stable
+      }
+    }
+
+    void loadComplaints()
+  }, [])
+
+  const filteredComplaints = complaints.filter(complaint => {
     const matchesCategory = selectedCategory === "all" || complaint.category === selectedCategory
     const matchesSearch = complaint.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          complaint.studentName.toLowerCase().includes(searchQuery.toLowerCase())
@@ -148,15 +104,29 @@ export default function WardenComplaintsPage() {
   })
 
   const getStatusCount = (status: string) => {
-    return mockComplaints.filter(c => c.status === status).length
+    return complaints.filter(c => c.status === status).length
   }
 
-  const handleStatusUpdate = (complaintId: string, newStatus: string) => {
-    // In a real app, this would make an API call
-    toast.success(`Complaint status updated to ${newStatus}`)
-    setSelectedComplaint(null)
-    setIsViewingDetails(false)
-    setResolutionNote("")
+  const handleStatusUpdate = async (complaintId: string, newStatus: string) => {
+    try {
+      const response = await fetch(`/api/complaints/${complaintId}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ status: newStatus.toUpperCase().replace("-", "_"), resolutionNote }),
+      })
+
+      const json = await response.json()
+      if (!response.ok || !json?.success) throw new Error("Update failed")
+
+      setComplaints((prev) => prev.map((complaint) => (complaint.id === complaintId ? { ...complaint, status: newStatus } : complaint)))
+      toast.success(`Complaint status updated to ${newStatus}`)
+      setSelectedComplaint(null)
+      setIsViewingDetails(false)
+      setResolutionNote("")
+    } catch {
+      toast.error("Unable to update complaint")
+    }
   }
 
   const handleViewDetails = (complaint: any) => {
@@ -192,7 +162,7 @@ export default function WardenComplaintsPage() {
               <MessageSquare className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{mockComplaints.length}</div>
+              <div className="text-2xl font-bold">{complaints.length}</div>
             </CardContent>
           </Card>
           

@@ -1,6 +1,8 @@
 import { z } from "zod"
 import { badRequest, ok, serverError } from "@/lib/api"
 
+export const dynamic = "force-dynamic"
+
 const TwoFASetupSchema = z.object({
   action: z.literal("setup-2fa"),
 })
@@ -31,6 +33,10 @@ export async function POST(request: Request) {
   } catch (err) {
     return serverError("Auth action failed", err)
   }
+}
+
+export async function GET() {
+  return ok({ status: "ok" })
 }
 
 

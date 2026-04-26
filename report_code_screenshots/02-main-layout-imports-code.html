@@ -1,0 +1,104 @@
+﻿<html><body style='background:#1e1e1e;color:#d4d4d4;font-family:monospace;font-size:18px;padding:20px;'><h1>app/layout.tsx</h1><pre>import type React from &quot;react&quot;
+import type { Metadata } from &quot;next&quot;
+import { Suspense } from &quot;react&quot;
+import { GeistSans } from &quot;geist/font/sans&quot;
+import { GeistMono } from &quot;geist/font/mono&quot;
+import &quot;./globals.css&quot;
+import { AuthProvider } from &quot;@/lib/auth&quot;
+import { NotificationProvider } from &quot;@/lib/notifications&quot;
+import { ThemeProvider } from &quot;next-themes&quot;
+import { ErrorBoundary } from &quot;@/components/error-boundary&quot;
+import { Toaster } from &quot;sonner&quot;
+import { LoadingSpinner } from &quot;@/components/ui/loading-spinner&quot;
+
+export const metadata: Metadata = {
+  title: {
+    default: &quot;Poornima University - Hostel Management&quot;,
+    template: &quot;%s | Poornima Hostel&quot;,
+  },
+  description:
+    &quot;Complete hostel and mess management solution for Poornima University, Jaipur&quot;,
+  keywords: [
+    &quot;hostel management&quot;,
+    &quot;mess management&quot;,
+    &quot;student portal&quot;,
+    &quot;warden&quot;,
+    &quot;admin&quot;,
+    &quot;Poornima University&quot;,
+    &quot;Jaipur&quot;,
+  ],
+  applicationName: &quot;PU Hostel Management&quot;,
+  creator: &quot;Poornima University&quot;,
+  authors: [{ name: &quot;Poornima University IT&quot; }],
+  generator: &quot;v0.app&quot;,
+  icons: {
+    icon: &quot;/images/poornima-logo.png&quot;,
+    shortcut: &quot;/images/poornima-logo.png&quot;,
+    apple: &quot;/images/poornima-logo.png&quot;,
+  },
+  openGraph: {
+    title: &quot;Poornima University - Hostel Management&quot;,
+    description:
+      &quot;Complete hostel and mess management solution for Poornima University, Jaipur&quot;,
+    url: &quot;https://demo.example.com&quot;,
+    siteName: &quot;PU Hostel Management&quot;,
+    images: [
+      {
+        url: &quot;/images/hostel-exterior.png&quot;,
+        width: 1200,
+        height: 630,
+        alt: &quot;Poornima University Hostel Campus&quot;,
+      },
+    ],
+    locale: &quot;en_IN&quot;,
+    type: &quot;website&quot;,
+  },
+  twitter: {
+    card: &quot;summary_large_image&quot;,
+    title: &quot;Poornima University - Hostel Management&quot;,
+    description:
+      &quot;Complete hostel and mess management solution for Poornima University, Jaipur&quot;,
+    images: [&quot;/images/hostel-exterior.png&quot;],
+    creator: &quot;@poornimauni&quot;,
+  },
+  metadataBase: new URL(&quot;http://localhost:3000&quot;),
+}
+
+export default function RootLayout({
+  children,
+}: Readonly&lt;{
+  children: React.ReactNode
+}&gt;) {
+  return (
+    &lt;html lang=&quot;en&quot; suppressHydrationWarning&gt;
+      &lt;body className={`font-sans ${GeistSans.variable} ${GeistMono.variable} antialiased`}&gt;
+        &lt;ThemeProvider attribute=&quot;class&quot; defaultTheme=&quot;system&quot; enableSystem disableTransitionOnChange={false}&gt;
+          &lt;ErrorBoundary&gt;
+            &lt;AuthProvider&gt;
+              &lt;NotificationProvider&gt;
+                &lt;Suspense
+                  fallback={
+                    &lt;div className=&quot;min-h-screen flex items-center justify-center&quot;&gt;
+                      &lt;LoadingSpinner size=&quot;lg&quot; /&gt;
+                    &lt;/div&gt;
+                  }
+                &gt;
+                  &lt;div className=&quot;min-h-screen flex flex-col&quot;&gt;
+                    &lt;div className=&quot;flex-1 flex flex-col&quot;&gt;
+                      {children}
+                    &lt;/div&gt;
+                    &lt;footer className=&quot;w-full text-center text-xs text-muted-foreground py-4 bg-background/80 border-t border-border/20&quot;&gt;
+                      Demo project for educational purposes only. Not an official Poornima University system.
+                    &lt;/footer&gt;
+                  &lt;/div&gt;
+                &lt;/Suspense&gt;
+                &lt;Toaster position=&quot;top-right&quot; closeButton richColors /&gt;
+              &lt;/NotificationProvider&gt;
+            &lt;/AuthProvider&gt;
+          &lt;/ErrorBoundary&gt;
+        &lt;/ThemeProvider&gt;
+      &lt;/body&gt;
+    &lt;/html&gt;
+  )
+}
+</pre></body></html>
