@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "node -e \"try { require('fs').rmSync('.next', { recursive: true, force: true }); } catch (_) {}\" && next build",
+    "build": "prisma generate && node -e \"try { require('fs').rmSync('.next', { recursive: true, force: true }); } catch (_) {}\" && next build",
     "build:clean": "node -e \"try { require('fs').rmSync('.next', { recursive: true, force: true }); require('fs').rmSync('.vercel', { recursive: true, force: true }); } catch (_) {}\" && next build",
     "dev": "next dev",
     "lint": "next lint",
