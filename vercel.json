@@ -1,7 +1,0 @@
-{
-  "version": 2,
-  "buildCommand": "pnpm run build:clean",
-  "outputDirectory": ".next",
-  "installCommand": "pnpm install --frozen-lockfile",
-  "framework": "nextjs"
-}
